@@ -12,11 +12,6 @@ on:
           - patch
           - minor
           - major
-      preid:
-        description: 'Prerelease identifier (e.g., beta, alpha, rc)'
-        required: false
-        default: 'beta'
-        type: string
 
 env:
   NODE_VERSION: '18'
@@ -55,7 +50,7 @@ jobs:
           
           # Bump version usando npm version
           if [[ "${{ github.event.inputs.version-bump }}" == *pre* ]]; then
-            npm version ${{ github.event.inputs.version-bump }} --preid=${{ github.event.inputs.preid }} --no-git-tag-version
+            npm version ${{ github.event.inputs.version-bump }} --no-git-tag-version
           else
             npm version ${{ github.event.inputs.version-bump }} --no-git-tag-version
           fi
