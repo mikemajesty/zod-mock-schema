@@ -1,0 +1,57 @@
+{
+  "name": "zod-mock-schema",
+  "version": "1.0.0",
+  "description": "Generate mock data from Zod schemas",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "keywords": [
+    "zod",
+    "mock",
+    "testing",
+    "faker",
+    "schema"
+  ],
+  "author": "Seu Nome",
+  "license": "MIT",
+  "dependencies": {
+    "@faker-js/faker": "^10.1.0",
+    "randexp": "^0.5.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "test": "jest"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikemajesty/zod-mock-schema.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mikemajesty/zod-mock-schema/issues"
+  },
+  "homepage": "https://github.com/mikemajesty/zod-mock-schema#readme"
+}
