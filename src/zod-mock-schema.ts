@@ -12,7 +12,7 @@ export class ZodMockSchema<T> {
 
   generate(overrides?: MockOptions<T>): T {
     const mockData = this.generateMockData(this.schema);
-    const merged = { ...(mockData as object), ...overrides };
+    const merged = { ...(mockData as object), ...overrides?.overrides};
     return this.schema.parse(merged);
   }
 
