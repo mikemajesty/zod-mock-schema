@@ -8,7 +8,7 @@ type AllType = string | number | boolean | Date | null | undefined | Record<stri
 export class ZodMockSchema<T> {
   public faker = faker
 
-  constructor(readonly schema: z.ZodSchema<T>) { }
+  constructor(readonly schema: z.ZodSchema<T>) {}
 
   generate(overrides?: MockOptions<T>): T {
     const mockData = this.generateMockData(this.schema);
@@ -21,7 +21,6 @@ export class ZodMockSchema<T> {
   }
 
   private generateMockData(schema: z.core.$ZodType): AllType {
-
     if ('meta' in schema && schema?.meta) {
       const meta = (schema as { meta: () => Record<string, unknown> })?.meta() as Record<string, unknown> || { format: null };
 
@@ -87,6 +86,13 @@ export class ZodMockSchema<T> {
       const shape = schema.shape;
 
       for (const [key, fieldSchema] of Object.entries(shape)) {
+        if (fieldSchema.type === 'default') {
+          const value = shape[key].def.defaultValue
+          if (value) {
+            mockData[key] = value
+            continue
+          }
+        }
         mockData[key] = this.generateMockData(fieldSchema as z.core.$ZodType);
       }
       return mockData;
@@ -142,7 +148,8 @@ export class ZodMockSchema<T> {
 
 
     if (schema instanceof z.ZodPipe) {
-      return this.generateMockData(schema.def.in);
+      const pipe = this.generateMockData(schema.def.in);
+      return pipe
     }
 
     return null;
@@ -180,13 +187,19 @@ export class ZodMockSchema<T> {
       return faker.date.recent().toISOString();
     }
 
+    const min = 10
+    const max = this.getRandomNumber(100, min)
     return faker.string.alpha({
       length: {
-        min: minLength ?? 0,
-        max: maxLength ?? 100
+        min: minLength ?? min,
+        max: maxLength ?? max
       }
     });
 
+  }
+
+  private getRandomNumber = (max: number, sum = 1) => {
+    return Math.floor(Math.random() * (max + 1)) + sum;
   }
 
   private generateNumber(schema: z.ZodNumber): number {
@@ -203,22 +216,25 @@ export class ZodMockSchema<T> {
       });
     }
     if (format === 'int' || format === 'integer' || format === 'int32' || format === 'int64' || format === 'uint' || format === 'uint32' || format === 'uint64' || format === 'safeint' || format === 'safeinteger') {
+      const min = 1
       return faker.number.int({
-        min: minValue ?? Number.MIN_SAFE_INTEGER,
-        max: maxValue ?? Number.MAX_SAFE_INTEGER
+        min: minValue ?? min,
+        max: maxValue ?? this.getRandomNumber(1000, min)
       });
     }
 
     if (format === 'float' || format === 'double' || format === 'decimal' || format === 'float32' || format === 'float64') {
+      const min = 1.5
       return faker.number.float({
-        min: minValue ?? 0,
-        max: maxValue ?? Number.MAX_SAFE_INTEGER
+        min: minValue ?? min,
+        max: maxValue ?? this.getRandomNumber(1000, min)
       });
     }
 
+    const min = 1
     return faker.number.int({
-      min: minValue ?? 0,
-      max: maxValue ?? Number.MAX_SAFE_INTEGER
+      min: minValue ?? min,
+      max: maxValue ?? this.getRandomNumber(1000, min)
     });
 
   }
@@ -227,8 +243,9 @@ export class ZodMockSchema<T> {
     const infinity = [Infinity, -Infinity]
     const isMinInfinity = infinity.some(i => i === minValue)
     const isMaxInfinity = infinity.some(i => i === maxValue)
-    const min = isMinInfinity ? Number.MAX_SAFE_INTEGER : (minValue || 1);
-    const max = isMaxInfinity ? Number.MAX_SAFE_INTEGER : (maxValue || Number.MAX_SAFE_INTEGER);
+    const minSafe = this.getRandomNumber(1000)
+    const min = isMinInfinity ? minSafe : (minValue || 1);
+    const max = isMaxInfinity ? this.getRandomNumber(1000, minSafe) : (maxValue || this.getRandomNumber(1000, minSafe));
     return { min, max };
   }
 
