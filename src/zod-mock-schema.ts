@@ -10,14 +10,14 @@ export class ZodMockSchema<T> {
 
   constructor(readonly schema: z.ZodSchema<T>) {}
 
-  generate(overrides?: MockOptions<T>): T {
+  generate<D extends T>(overrides?: MockOptions<T>): D {
     const mockData = this.generateMockData(this.schema);
     const merged = { ...(mockData as object), ...overrides?.overrides};
-    return this.schema.parse(merged);
+    return this.schema.parse(merged) as D;
   }
 
-  createMany(count: number, overrides?: MockOptions<T>): T[] {
-    return Array.from({ length: count }, () => this.generate(overrides));
+  generateMany<D extends T>(count: number, overrides?: MockOptions<T>): D[] {
+    return Array.from({ length: count }, () => this.generate(overrides)) as D[];
   }
 
   private generateMockData(schema: z.core.$ZodType): AllType {

@@ -7,6 +7,6 @@ export declare class ZodSchemaMock<T> {
   
   constructor(schema: z.ZodSchema<T>);
   
-  generate(options?: MockOptions<T>): T;
-  generateMany(count: number, options?: MockOptions<T>): T[];
+  generate<D>(options?: MockOptions<T>): D;
+  generateMany<D>(count: number, options?: MockOptions<T>): D[];
 }
