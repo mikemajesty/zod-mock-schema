@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockOptions } from './types';
+import { MockManyOptions, MockOptions, UseOptionsType } from './types';
 
 type AllType = string | number | boolean | Date | null | undefined | Record<string, unknown> | any | AllType[];
 
@@ -16,8 +16,28 @@ export class ZodMockSchema<T> {
     return this.schema.parse(merged) as D;
   }
 
-  generateMany<D extends T>(count: number, overrides?: MockOptions<T>): D[] {
-    return Array.from({ length: count }, () => this.generate(overrides)) as D[];
+  generateMany<D extends T>(
+    count: number, 
+    options: MockManyOptions<T> = {}
+  ): D[] {
+    const { overrides = {}, prefix } = options;
+    
+    return Array.from({ length: count }, (_, index) => {
+      const data = this.generate(overrides) as any;
+      
+      if (!prefix) return data as D;
+      
+      const { for: field, options: prefixOptions } = prefix;
+      
+      if (Array.isArray(prefixOptions)) {
+        const selectedPrefix = faker.helpers.arrayElement(prefixOptions);
+        data[field] = `${selectedPrefix}_${String(data[field])}`;
+        return data as D;
+      }
+      
+      data[field] = `${String(data[field])}_${index + 1}`;
+      return data as D;
+    });
   }
 
   private generateMockData(schema: z.core.$ZodType): AllType {
