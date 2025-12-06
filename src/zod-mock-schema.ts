@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockManyOptions, MockOptions, UseOptionsType } from './types';
+import { MockManyOptions, MockOptions } from './types';
 
 type AllType = string | number | boolean | Date | null | undefined | Record<string, unknown> | any | AllType[];
 
@@ -10,9 +10,12 @@ export class ZodMockSchema<T> {
 
   constructor(readonly schema: z.ZodSchema<T>) {}
 
-  generate<D extends T>(overrides?: MockOptions<T>): D {
+  generate<D extends T>(overrides?: MockOptions<T>, skipValidation?: boolean): D {
     const mockData = this.generateMockData(this.schema);
     const merged = { ...(mockData as object), ...overrides?.overrides};
+    if (skipValidation) {
+      return merged as D;
+    }
     return this.schema.parse(merged) as D;
   }
 
@@ -23,7 +26,7 @@ export class ZodMockSchema<T> {
     const { overrides = {}, prefix } = options;
     
     return Array.from({ length: count }, (_, index) => {
-      const data = this.generate(overrides) as any;
+      const data = this.generate(overrides, [options?.overrides, options?.prefix].some(Boolean) ? true : false) as T;
       
       if (!prefix) return data as D;
       
@@ -31,11 +34,11 @@ export class ZodMockSchema<T> {
       
       if (Array.isArray(prefixOptions)) {
         const selectedPrefix = faker.helpers.arrayElement(prefixOptions);
-        data[field] = `${selectedPrefix}_${String(data[field])}`;
+        data[field as keyof T] = `${selectedPrefix}${String(data[field])}` as T[keyof T];
         return data as D;
       }
       
-      data[field] = `${String(data[field])}_${index + 1}`;
+      data[field as keyof T] = `${String(data[field as keyof T])}_${index + 1}` as T[keyof T];
       return data as D;
     });
   }

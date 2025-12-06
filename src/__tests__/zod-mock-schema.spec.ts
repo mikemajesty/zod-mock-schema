@@ -425,6 +425,7 @@ describe('PersonEntity with Complex Schema', () => {
 
   test('should generate complex mock data', () => {
     const mock = entityMock.generate();
+
     expect(mock).toBeDefined();
     expect(mock.role).toBeDefined();
     expect(mock.statusHistory).toBeDefined();
