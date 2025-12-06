@@ -10,12 +10,9 @@ export class ZodMockSchema<T> {
 
   constructor(readonly schema: z.ZodSchema<T>) {}
 
-  generate<D extends T>(overrides?: MockOptions<T>, skipValidation?: boolean): D {
+  generate<D extends T>(overrides?: MockOptions<T>): D {
     const mockData = this.generateMockData(this.schema);
     const merged = { ...(mockData as object), ...overrides?.overrides};
-    if (skipValidation) {
-      return merged as D;
-    }
     return this.schema.parse(merged) as D;
   }
 
@@ -23,10 +20,10 @@ export class ZodMockSchema<T> {
     count: number, 
     options: MockManyOptions<T> = {}
   ): D[] {
-    const { overrides = {}, prefix } = options;
+    const { prefix } = options;
     
     return Array.from({ length: count }, (_, index) => {
-      const data = this.generate(overrides, [options?.overrides, options?.prefix].some(Boolean) ? true : false) as T;
+      const data = this.generate(options) as T;
       
       if (!prefix) return data as D;
       
