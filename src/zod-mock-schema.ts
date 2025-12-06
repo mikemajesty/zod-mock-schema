@@ -8,34 +8,21 @@ type AllType = string | number | boolean | Date | null | undefined | Record<stri
 export class ZodMockSchema<T> {
   public faker = faker
 
-  constructor(readonly schema: z.ZodSchema<T>) {}
+  constructor(readonly schema: z.ZodSchema<T>) { }
 
   generate<D extends T>(overrides?: MockOptions<T>): D {
     const mockData = this.generateMockData(this.schema);
-    const merged = { ...(mockData as object), ...overrides?.overrides};
+    const merged = { ...(mockData as object), ...overrides?.overrides };
     return this.schema.parse(merged) as D;
   }
 
   generateMany<D extends T>(
-    count: number, 
+    count: number,
     options: MockManyOptions<T> = {}
   ): D[] {
-    const { prefix } = options;
-    
-    return Array.from({ length: count }, (_, index) => {
+    return Array.from({ length: count }, () => {
       const data = this.generate(options) as T;
-      
-      if (!prefix) return data as D;
-      
-      const { for: field, options: prefixOptions } = prefix;
-      
-      if (Array.isArray(prefixOptions)) {
-        const selectedPrefix = faker.helpers.arrayElement(prefixOptions);
-        data[field as keyof T] = `${selectedPrefix}${String(data[field])}` as T[keyof T];
-        return data as D;
-      }
-      
-      data[field as keyof T] = `${String(data[field as keyof T])}_${index + 1}` as T[keyof T];
+
       return data as D;
     });
   }
@@ -45,23 +32,23 @@ export class ZodMockSchema<T> {
       const meta = (schema as { meta: () => Record<string, unknown> })?.meta() as Record<string, unknown> || { format: null };
 
       if (meta?.format === 'cpf') {
-        return '52269759028'
+        return this.getBralizilianMockedData().cpf
       }
 
       if (meta?.format === 'cnpj') {
-        return '79372947000183'
+        return this.getBralizilianMockedData().cnpj
       }
 
       if (meta?.format === 'rg') {
-        return '202991210'
+        return this.getBralizilianMockedData().rg
       }
 
       if (meta?.format === 'phoneBR') {
-        return '11987654321'
+        return this.getBralizilianMockedData().phoneBR
       }
 
       if (meta?.format === 'cep') {
-        return '88030490'
+        return this.getBralizilianMockedData().cep
       }
     }
 
@@ -259,6 +246,15 @@ export class ZodMockSchema<T> {
 
   }
 
+  getBralizilianMockedData() {
+    return {
+      cpf: faker.helpers.arrayElement(this.validCPF),
+      cnpj: faker.helpers.arrayElement(this.validCNPJ),
+      rg: faker.helpers.arrayElement(this.validRG),
+      phoneBR: faker.helpers.arrayElement(this.validPhoneBR),
+      cep: faker.helpers.arrayElement(this.validCEP)
+    }
+  }
   private getMinMax(minValue: number | null, maxValue: number | null) {
     const infinity = [Infinity, -Infinity]
     const isMinInfinity = infinity.some(i => i === minValue)
@@ -282,4 +278,46 @@ export class ZodMockSchema<T> {
 
     return null;
   }
+
+  private validCPF = [
+    "12345678909",
+    "52998224725",
+    "11144477735",
+    "86473782905",
+    "40723177808"
+  ];
+
+  private validCNPJ = [
+    "11222333000181",
+    "60676960000106",
+    "06990590000123",
+    "33112511000130",
+    "00111222000189"
+  ];
+
+
+  private validRG = [
+    "238192611",
+    "110209394",
+    "202455518",
+    "437062053",
+    "207022689"
+  ];
+
+  private validPhoneBR = [
+    "11987654321",
+    "21998765432",
+    "31991234567",
+    "41992345678",
+    "51993456789"
+  ];
+
+  private validCEP = [
+    "01001000",
+    "20040010",
+    "30130010",
+    "80010000",
+    "90010000"
+  ];
+
 }
