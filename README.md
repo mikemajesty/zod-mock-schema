@@ -15,7 +15,6 @@ A powerful and flexible class‑based utility for generating realistic mock data
 - ✅ Custom formats: **CPF, CNPJ, RG, CEP, phone BR**  
 - ✅ Deterministic generation via Faker seeding  
 - ✅ Batch creation with `generateMany`  
-- ✅ Smart prefixing for unique, identifiable data  
 - ✅ Index‑based generation for sequential data  
 - ✅ Flexible field customization  
 - ✅ Full Zod schema support (Union, Intersection, Record, Lazy, Pipe, etc.)
@@ -52,7 +51,7 @@ const userSchema = z.object({
   age: z.number().int().min(18).max(99),
   isActive: z.boolean(),
   createdAt: z.date(),
-});
+});x
 
 const userMock = new ZodMockSchema(userSchema);
 
@@ -98,35 +97,7 @@ userMock.generateMany(3, {
   overrides: { department: 'Engineering' }
 });
 ```
-
 ---
-
-## 🎯 Smart Prefixing System
-
-### Random Prefix Selection
-
-```ts
-userMock.generateMany(5, {
-  prefix: {
-    options: ['USER', 'CLIENT', 'CUSTOMER', 'MEMBER'],
-    for: 'username'
-  }
-});
-```
-
-### Index-Based Prefixing
-
-```ts
-userMock.generateMany(3, {
-  prefix: {
-    options: { useIndex: true },
-    for: 'email'
-  }
-});
-```
-
----
-
 ## 🧠 Advanced Zod Schema Support
 
 ### Complex Zod Types
@@ -188,10 +159,6 @@ orderMock.generateMany(5, {
   overrides: {
     status: 'processing',
     total: 1399.97,
-  },
-  prefix: {
-    options: { useIndex: true },
-    for: 'id'
   }
 });
 ```
@@ -214,11 +181,7 @@ export class UserFactory {
 
   createAdmins(count: number) {
     return this.mock.generateMany(count, {
-      overrides: { role: 'admin' },
-      prefix: {
-        options: ['ADM', 'ADMIN'],
-        for: 'username'
-      }
+      overrides: { role: 'admin' }
     });
   }
 }
@@ -242,12 +205,7 @@ describe('User Service', () => {
   const userMock = new ZodMockSchema(userSchema);
 
   test('should create multiple unique users', () => {
-    const users = userMock.generateMany(5, {
-      prefix: {
-        options: { useIndex: true },
-        for: 'email'
-      }
-    });
+    const users = userMock.generateMany(5);
 
     const emails = users.map(u => u.email);
     expect(new Set(emails).size).toBe(5);
@@ -288,7 +246,6 @@ Generates multiple mock objects.
 - Reuse mock instances  
 - Use overrides for business rules  
 - Centralize factories  
-- Use prefixing for unique data  
 - Seed Faker for deterministic tests  
 
 ---
