@@ -60,7 +60,7 @@ const userSchema = z.object({
   age: z.number().int().min(18).max(99),
   isActive: z.boolean(),
   createdAt: z.date(),
-});
+});x
 
 const userMock = new ZodMockSchema(userSchema);
 
@@ -106,7 +106,6 @@ userMock.generateMany(3, {
   overrides: { department: 'Engineering' }
 });
 ```
-
 ---
 
 ## 🎯 Smart Prefixing System
@@ -221,10 +220,6 @@ orderMock.generateMany(5, {
   overrides: {
     status: 'processing',
     total: 1399.97,
-  },
-  prefix: {
-    options: { useIndex: true },
-    for: 'id'
   }
 });
 ```
@@ -247,11 +242,7 @@ export class UserFactory {
 
   createAdmins(count: number) {
     return this.mock.generateMany(count, {
-      overrides: { role: 'admin' },
-      prefix: {
-        options: ['ADM', 'ADMIN'],
-        for: 'username'
-      }
+      overrides: { role: 'admin' }
     });
   }
 }
@@ -303,12 +294,7 @@ describe('User Service', () => {
   const userMock = new ZodMockSchema(userSchema);
 
   test('should create multiple unique users', () => {
-    const users = userMock.generateMany(5, {
-      prefix: {
-        options: { useIndex: true },
-        for: 'email'
-      }
-    });
+    const users = userMock.generateMany(5);
 
     const emails = users.map(u => u.email);
     expect(new Set(emails).size).toBe(5);
