@@ -26,10 +26,6 @@ export class ZodMockSchema<T> {
       
       const mockData = this.generateFromSchema(this.schema);
       
-      if (mockData instanceof Promise) {
-        return mockData as D;
-      }
-      
       if (overrides?.overrides && this.isPlainObject(mockData)) {
         const merged = { ...(mockData as object), ...overrides.overrides };
         return this.schema.parse(merged) as D;
@@ -244,11 +240,6 @@ export class ZodMockSchema<T> {
       return (() => {
         return this.generateFromSchema(functionWithDef.def.output);
       }) as MockValue;
-    }
-
-    if (schema instanceof z.ZodPromise) {
-      const promiseWithDef = schema as unknown as { def: { type: z.core.$ZodType } };
-      return Promise.resolve(this.generateFromSchema(promiseWithDef.def.type));
     }
 
     if (this.isBrandedType(schema)) {

@@ -501,17 +501,6 @@ describe('New Zod Types Support', () => {
     });
   });
 
-  describe('ZodPromise', () => {
-    test('should generate a resolved promise', async () => {
-      const schema = z.promise(z.string());
-      const mock = new ZodMockSchema(schema);
-      const result = mock.generate();
-
-      expect(result).toBeInstanceOf(Promise);
-      await expect(result).resolves.toBeDefined();
-    });
-  });
-
   describe('ZodDiscriminatedUnion', () => {
     test('should generate one of the union options', () => {
       const schema = z.discriminatedUnion('type', [
