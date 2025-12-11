@@ -187,7 +187,7 @@ const AdminRole = z.object({
       scope: z.enum(['global', 'department', 'personal']),
     })
   ).min(1),
-  reportsTo: z.string().uuid().optional(),
+  reportsTo: z.uuid().optional(),
   managedDepartments: z.array(z.string()).optional(),
 });
 
@@ -222,7 +222,7 @@ const IdentityDocument = z.object({
   issuingAuthority: z.string(),
   issueDate: z.date(),
   expiryDate: z.date().optional(),
-  photoUrl: z.string().url().optional(),
+  photoUrl: z.url().optional(),
   verified: z.boolean().default(false),
 });
 
@@ -308,12 +308,12 @@ const StatusHistory = z.array(
     status: z.enum(['active', 'inactive', 'pending', 'suspended', 'graduated', 'terminated']),
     effectiveDate: z.date(),
     reason: z.string().optional(),
-    changedBy: z.string().uuid().optional(),
+    changedBy: z.uuid().optional(),
   })
 ).min(1);
 
 const StudentMetadata = z.object({
-  advisorId: z.string().uuid().optional(),
+  advisorId: z.uuid().optional(),
   thesisTitle: z.string().optional(),
   researchArea: z.string().optional(),
   publications: z.array(
@@ -430,5 +430,235 @@ describe('PersonEntity with Complex Schema', () => {
     expect(mock.role).toBeDefined();
     expect(mock.statusHistory).toBeDefined();
     expect(mock.addresses.length).toBeGreaterThan(0);
+  });
+});
+
+describe('New Zod Types Support', () => {
+  describe('ZodSet', () => {
+    test('should generate a Set with elements', () => {
+      const schema = z.set(z.string());
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeInstanceOf(Set);
+      expect(result.size).toBeGreaterThan(0);
+    });
+
+    test('should respect min/max size constraints', () => {
+      const schema = z.set(z.number()).min(2).max(5);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeInstanceOf(Set);
+      expect(result.size).toBeGreaterThanOrEqual(2);
+      expect(result.size).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('ZodMap', () => {
+    test('should generate a Map with entries', () => {
+      const schema = z.map(z.string(), z.number());
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBeGreaterThan(0);
+    });
+  });
+
+  describe('ZodTuple', () => {
+    test('should generate a tuple with correct types', () => {
+      const schema = z.tuple([z.string(), z.number(), z.boolean()]);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(3);
+      expect(typeof result[0]).toBe('string');
+      expect(typeof result[1]).toBe('number');
+      expect(typeof result[2]).toBe('boolean');
+    });
+
+    test('should generate tuple with rest elements', () => {
+      const schema = z.tuple([z.string()]).rest(z.number());
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(typeof result[0]).toBe('string');
+    });
+  });
+
+  describe('ZodFunction', () => {
+    test('should generate a function that returns mocked value', () => {
+      const schema = z.function();
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate() as () => any;
+
+      expect(typeof result).toBe('function');
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('ZodPromise', () => {
+    test('should generate a resolved promise', async () => {
+      const schema = z.promise(z.string());
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).resolves.toBeDefined();
+    });
+  });
+
+  describe('ZodDiscriminatedUnion', () => {
+    test('should generate one of the union options', () => {
+      const schema = z.discriminatedUnion('type', [
+        z.object({ type: z.literal('a'), value: z.string() }),
+        z.object({ type: z.literal('b'), value: z.number() }),
+      ]);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeDefined();
+      expect(['a', 'b']).toContain(result.type);
+    });
+  });
+
+  describe('ZodBigInt', () => {
+    test('should generate a BigInt', () => {
+      const schema = z.bigint();
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(typeof result).toBe('bigint');
+      expect(result).toBeGreaterThan(BigInt(0));
+    });
+  });
+
+  describe('ZodNaN', () => {
+    test('should generate NaN', () => {
+      const schema = z.nan();
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(Number.isNaN(result)).toBe(true);
+    });
+  });
+
+  describe('ZodReadonly', () => {
+    test('should generate readonly object', () => {
+      const schema = z.object({ name: z.string() }).readonly();
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeDefined();
+      expect(typeof result.name).toBe('string');
+    });
+  });
+});
+
+describe('Improved Constraints', () => {
+  describe('String min/max', () => {
+    test('should respect min length', () => {
+      const schema = z.string().min(10);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result.length).toBeGreaterThanOrEqual(10);
+    });
+
+    test('should respect max length', () => {
+      const schema = z.string().max(5);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result.length).toBeLessThanOrEqual(5);
+    });
+
+    test('should respect both min and max', () => {
+      const schema = z.string().min(5).max(10);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result.length).toBeGreaterThanOrEqual(5);
+      expect(result.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('Date min/max', () => {
+    test('should respect date range', () => {
+      const minDate = new Date('2025-01-01');
+      const maxDate = new Date('2025-12-31');
+      const schema = z.date().min(minDate).max(maxDate);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBeInstanceOf(Date);
+      expect(result.getTime()).toBeGreaterThanOrEqual(minDate.getTime());
+      expect(result.getTime()).toBeLessThanOrEqual(maxDate.getTime());
+    });
+  });
+
+  describe('ZodDefault always uses default value', () => {
+    test('should always return the default value', () => {
+      const schema = z.string().default('DEFAULT_VALUE');
+      const mock = new ZodMockSchema(schema);
+      
+      // Generate multiple times, should always be the default
+      const results = Array.from({ length: 10 }, () => mock.generate());
+      
+      expect(results.every(r => r === 'DEFAULT_VALUE')).toBe(true);
+    });
+
+    test('should work with default numbers', () => {
+      const schema = z.number().default(42);
+      const mock = new ZodMockSchema(schema);
+      const result = mock.generate();
+
+      expect(result).toBe(42);
+    });
+  });
+});
+
+describe('Seed Support', () => {
+  test('should generate same data with same seed', () => {
+    const schema = z.object({
+      name: z.string(),
+      age: z.number(),
+      email: z.email(),
+    });
+
+    const mock1 = new ZodMockSchema(schema).seed(12345);
+    const result1 = mock1.generate();
+
+    const mock2 = new ZodMockSchema(schema).seed(12345);
+    const result2 = mock2.generate();
+
+    expect(result1).toEqual(result2);
+  });
+
+  test('should generate different data with different seeds', () => {
+    const schema = z.object({
+      name: z.string(),
+      age: z.number(),
+    });
+
+    const mock1 = new ZodMockSchema(schema).seed(111);
+    const result1 = mock1.generate();
+
+    const mock2 = new ZodMockSchema(schema).seed(222);
+    const result2 = mock2.generate();
+
+    expect(result1).not.toEqual(result2);
+  });
+
+  test('should support array seed', () => {
+    const schema = z.string();
+    const mock = new ZodMockSchema(schema).seed([1, 2, 3]);
+    const result = mock.generate();
+
+    expect(typeof result).toBe('string');
   });
 });

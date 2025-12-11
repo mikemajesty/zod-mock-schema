@@ -1,323 +1,421 @@
-import { faker } from '@faker-js/faker';
+import { Faker, en } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockManyOptions, MockOptions } from './types';
-
-type AllType = string | number | boolean | Date | null | undefined | Record<string, unknown> | any | AllType[];
+import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps } from './types';
+import { Constants } from './constants';
 
 export class ZodMockSchema<T> {
-  public faker = faker
+  public faker: Faker;
 
-  constructor(readonly schema: z.ZodSchema<T>) { }
+  constructor(readonly schema: z.ZodSchema<T>) {
+    this.faker = new Faker({ locale: en });
+  }
+
+  seed(seed: number | number[]): this {
+    this.faker.seed(Array.isArray(seed) ? seed : [seed]);
+    return this;
+  }
 
   generate<D extends T>(overrides?: MockOptions<T>): D {
-    const mockData = this.generateMockData(this.schema);
-    const merged = { ...(mockData as object), ...overrides?.overrides };
-    return this.schema.parse(merged) as D;
+    const originalFaker = this.faker;
+    
+    try {
+      if (overrides?.faker) {
+        this.faker = overrides.faker;
+      }
+      
+      const mockData = this.generateFromSchema(this.schema);
+      
+      if (mockData instanceof Promise) {
+        return mockData as D;
+      }
+      
+      if (overrides?.overrides && this.isPlainObject(mockData)) {
+        const merged = { ...(mockData as object), ...overrides.overrides };
+        return this.schema.parse(merged) as D;
+      }
+      
+      return this.schema.parse(mockData) as D;
+    } finally {
+      this.faker = originalFaker;
+    }
   }
 
   generateMany<D extends T>(
     count: number,
     options: MockManyOptions<T> = {}
   ): D[] {
-    return Array.from({ length: count }, () => {
-      const data = this.generate(options) as T;
-
-      return data as D;
-    });
+    return Array.from({ length: count }, () => this.generate(options));
   }
 
-  private generateMockData(schema: z.core.$ZodType): AllType {
-    if ('meta' in schema && schema?.meta) {
-      const meta = (schema as { meta: () => Record<string, unknown> })?.meta() as Record<string, unknown> || { format: null };
-
-      if (meta?.format === 'cpf') {
-        return this.getBralizilianMockedData().cpf
-      }
-
-      if (meta?.format === 'cnpj') {
-        return this.getBralizilianMockedData().cnpj
-      }
-
-      if (meta?.format === 'rg') {
-        return this.getBralizilianMockedData().rg
-      }
-
-      if (meta?.format === 'phoneBR') {
-        return this.getBralizilianMockedData().phoneBR
-      }
-
-      if (meta?.format === 'cep') {
-        return this.getBralizilianMockedData().cep
+  private generateFromSchema(schema: z.core.$ZodType): MockValue {
+    if (this.hasMetadata(schema)) {
+      const meta = (schema as { meta: () => Record<string, unknown> }).meta();
+      const brazilianFormats: Record<string, 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep'> = {
+        [Constants.FORMAT_CPF]: 'cpf',
+        [Constants.FORMAT_CNPJ]: 'cnpj',
+        [Constants.FORMAT_RG]: 'rg',
+        [Constants.FORMAT_PHONE_BR]: 'phoneBR',
+        [Constants.FORMAT_CEP]: 'cep'
+      };
+      
+      const format = meta?.format as string;
+      if (format && brazilianFormats[format]) {
+        return this.getBrazilianMockValue(brazilianFormats[format]);
       }
     }
 
     if (schema instanceof z.ZodUnion) {
       const options = schema.def.options as z.core.$ZodType[];
-      const randomOption = faker.helpers.arrayElement(options);
-      return this.generateMockData(randomOption);
+      const selectedOption = this.faker.helpers.arrayElement(options);
+      return this.generateFromSchema(selectedOption);
     }
 
     if (schema instanceof z.ZodIntersection) {
-      const left = this.generateMockData(schema.def.left) as Record<string, unknown>;
-      const right = this.generateMockData(schema.def.right) as Record<string, unknown>;
-      return { ...left, ...right };
+      const leftSchema = this.generateFromSchema(schema.def.left) as Record<string, unknown>;
+      const rightSchema = this.generateFromSchema(schema.def.right) as Record<string, unknown>;
+      return { ...leftSchema, ...rightSchema };
     }
 
-    if (schema instanceof z.ZodEmail) return faker.internet.email();
-    if (schema instanceof z.ZodURL) return faker.internet.url();
-    if (schema instanceof z.ZodUUID) return faker.string.uuid();
+    if (schema instanceof z.ZodEmail) return this.faker.internet.email();
+    if (schema instanceof z.ZodURL) return this.faker.internet.url();
+    if (schema instanceof z.ZodUUID) return this.faker.string.uuid();
     if (schema instanceof z.ZodString) {
-      return this.generateString(schema);
+      return this.generateStringValue(schema);
     };
     if (schema instanceof z.ZodNumber) {
-      return this.generateNumber(schema);
+      return this.generateNumberValue(schema);
     }
-    if (schema instanceof z.ZodBoolean) return faker.datatype.boolean();
-    if (schema instanceof z.ZodDate) return faker.date.recent();
-
+    if (schema instanceof z.ZodBoolean) return this.faker.datatype.boolean();
+    if (schema instanceof z.ZodDate) {
+      const constraints = (schema.def.checks as ZodCheck[]) || [];
+      const minConstraint = constraints.find((c) => c._zod.def.check === 'greater_than');
+      const maxConstraint = constraints.find((c) => c._zod.def.check === 'less_than');
+      const minDateBound = minConstraint ? new Date((minConstraint._zod.def as z.core.$ZodCheckGreaterThanDef).value as Date) : undefined;
+      const maxDateBound = maxConstraint ? new Date((maxConstraint._zod.def as z.core.$ZodCheckLessThanDef).value as Date) : undefined;
+      
+      if (minDateBound && maxDateBound) {
+        return this.faker.date.between({ from: minDateBound, to: maxDateBound });
+      }
+      
+      if (minDateBound) {
+        return this.faker.date.future({ refDate: minDateBound });
+      }
+      
+      if (maxDateBound) {
+        return this.faker.date.past({ refDate: maxDateBound });
+      }
+      
+      return this.faker.date.recent();
+    }
 
     if (schema instanceof z.ZodArray) {
-      type MaxMinType = z.core.$ZodCheckMinSizeDef | z.core.$ZodCheckMaxSizeDef
+      const checks = (schema.def.checks as ZodCheck[]) || [];
+      const minCheck = checks.find((c) => c._zod.def.check === 'min_length') as ZodCheckMinLength | undefined;
+      const maxCheck = checks.find((c) => c._zod.def.check === 'max_length') as ZodCheckMaxLength | undefined;
+      const minLength = (minCheck?._zod.def as ZodCheckMinLengthDef)?.minimum ?? Constants.DEFAULT_ARRAY_MIN_LENGTH;
+      const maxLength = (maxCheck?._zod.def as ZodCheckMaxLengthDef)?.maximum ?? Constants.DEFAULT_ARRAY_MAX_LENGTH;
+      const arrayLength = this.faker.number.int({ min: Math.min(minLength, maxLength), max: Math.max(minLength, maxLength) });
 
-      const minMaxList: MaxMinType[] = (schema.def?.checks || []).map(c => (c._zod.def as MaxMinType))
-      const min = (minMaxList.find(m => (m as z.core.$ZodCheckMinSizeDef)?.minimum !== undefined) as z.core.$ZodCheckMinSizeDef)?.minimum ?? 1
-      const max = (minMaxList.find(m => (m as z.core.$ZodCheckMaxSizeDef)?.maximum !== undefined) as z.core.$ZodCheckMaxSizeDef)?.maximum ?? 1
-      const length = faker.number.int({ min, max });
-
-      return Array.from({ length }, () => this.generateMockData(schema.element));
+      return Array.from({ length: arrayLength }, () => this.generateFromSchema(schema.element));
     }
 
     if (schema instanceof z.ZodObject) {
-      const mockData: Record<string, AllType> = {};
-      const shape = schema.shape;
+      const objectData: Record<string, MockValue> = {};
+      const schemaShape = schema.shape;
 
-      for (const [key, fieldSchema] of Object.entries(shape)) {
-        if (fieldSchema.type === 'default') {
-          const value = shape[key].def.defaultValue
-          if (value) {
-            mockData[key] = value
-            continue
-          }
-        }
-        mockData[key] = this.generateMockData(fieldSchema as z.core.$ZodType);
+      for (const [propertyKey, propertySchema] of Object.entries(schemaShape)) {
+        objectData[propertyKey] = this.generateFromSchema(propertySchema as z.core.$ZodType);
       }
-      return mockData;
+      return objectData;
     }
 
     if (schema instanceof z.ZodEnum) {
-      return faker.helpers.arrayElement(schema.options);
+      return this.faker.helpers.arrayElement(schema.options);
     }
 
     if (schema instanceof z.ZodRecord) {
-      const keySchema = schema.keyType;
-      const valueSchema = schema.valueType;
+      const recordKeySchema = schema.keyType;
+      const recordValueSchema = schema.valueType;
 
-      if (keySchema instanceof z.ZodEnum) {
-        const options = keySchema.options as string[];
-        const propertyCount = options.length
-        const selectedKeys = faker.helpers.arrayElements(options, propertyCount);
+      if (recordKeySchema instanceof z.ZodEnum) {
+        const enumOptions = recordKeySchema.options as string[];
+        const selectedKeys = this.faker.helpers.arrayElements(enumOptions, enumOptions.length);
 
-        return selectedKeys.reduce((record, key) => ({
-          ...record,
-          [key]: this.generateMockData(valueSchema)
-        }), {} as Record<string, AllType>);
+        return selectedKeys.reduce((recordData, propertyKey) => ({
+          ...recordData,
+          [propertyKey]: this.generateFromSchema(recordValueSchema)
+        }), {} as Record<string, MockValue>);
       }
 
-      const propertyCount = faker.number.int({ min: 1, max: 3 });
+      const propertiesCount = this.faker.number.int({ min: Constants.DEFAULT_RECORD_MIN_PROPERTIES, max: Constants.DEFAULT_RECORD_MAX_PROPERTIES });
 
-      return Array.from({ length: propertyCount })
-        .reduce((record, _, index) => {
-          const key = keySchema instanceof z.ZodString
-            ? this.generateString(keySchema)
-            : keySchema instanceof z.ZodNumber
-              ? this.generateNumber(keySchema).toString()
-              : `${index}`;
+      return Array.from({ length: propertiesCount })
+        .reduce((recordData, _, propertyIndex) => {
+          const propertyKey = recordKeySchema instanceof z.ZodString
+            ? this.generateStringValue(recordKeySchema)
+            : recordKeySchema instanceof z.ZodNumber
+              ? this.generateNumberValue(recordKeySchema).toString()
+              : `key${propertyIndex}`;
 
           return {
-            ...record as object,
-            [key]: this.generateMockData(valueSchema)
+            ...recordData as object,
+            [propertyKey]: this.generateFromSchema(recordValueSchema)
           };
-        }, {} as Record<string, AllType>);
+        }, {} as Record<string, MockValue>);
     }
 
-    if (schema instanceof z.ZodOptional) return this.generateMockData(schema.unwrap());
-    if (schema instanceof z.ZodNullable) return this.generateMockData(schema.unwrap());
+    if (schema instanceof z.ZodOptional) return this.generateFromSchema(schema.unwrap());
+    if (schema instanceof z.ZodNullable) return this.generateFromSchema(schema.unwrap());
 
-    if (schema instanceof z.ZodDefault) return this.generateMockData(schema.unwrap());
+    if (schema instanceof z.ZodDefault) {
+      const defaultValueOrFunction = (schema.def as { defaultValue?: unknown }).defaultValue;
+      return typeof defaultValueOrFunction === 'function' ? defaultValueOrFunction() : defaultValueOrFunction;
+    }
 
-    if (schema instanceof z.ZodLazy) return this.generateMockData(schema.def.getter());
+    if (schema instanceof z.ZodLazy) return this.generateFromSchema(schema.def.getter());
 
-    if (schema instanceof z.ZodAny || schema instanceof z.ZodUnknown) return this.generateAnyValue();
+    if (schema instanceof z.ZodAny || schema instanceof z.ZodUnknown) return this.generateUnknownTypeValue();
     if (schema instanceof z.ZodVoid) return undefined;
     if (schema instanceof z.ZodNull) return null;
     if (schema instanceof z.ZodLiteral) return schema.value;
 
 
     if (schema instanceof z.ZodPipe) {
-      const pipe = this.generateMockData(schema.def.in);
-      return pipe
+      return this.generateFromSchema(schema.def.in);
+    }
+
+    if (schema instanceof z.ZodSet) {
+      const checks = (schema.def.checks as ZodCheck[]) || [];
+      const minConstraint = checks.find((c) => c._zod.def.check === 'min_size') as ZodCheckMinSize | undefined;
+      const maxConstraint = checks.find((c) => c._zod.def.check === 'max_size') as ZodCheckMaxSize | undefined;
+      const minSetSize = (minConstraint?._zod.def as ZodCheckMinSizeDef)?.minimum ?? Constants.DEFAULT_SET_MIN_SIZE;
+      const maxSetSize = (maxConstraint?._zod.def as ZodCheckMaxSizeDef)?.maximum ?? Constants.DEFAULT_SET_MAX_SIZE;
+      
+      const targetSize = this.faker.number.int({ 
+        min: Math.min(minSetSize, maxSetSize), 
+        max: Math.max(minSetSize, maxSetSize) 
+      });
+      
+      const items = new Set<MockValue>();
+      let attempts = 0;
+      const maxAttempts = targetSize * 10;
+      
+      const setWithDef = schema as unknown as { def: { valueType: z.core.$ZodType; checks: ZodCheck[] } };
+      
+      while (items.size < targetSize && attempts < maxAttempts) {
+        items.add(this.generateFromSchema(setWithDef.def.valueType));
+        attempts++;
+      }
+      
+      return items;
+    }
+
+    if (schema instanceof z.ZodMap) {
+      const mapSize = Constants.DEFAULT_MAP_SIZE;
+      const mapData = new Map<MockValue, MockValue>();
+      const mapWithDef = schema as unknown as { def: { keyType: z.core.$ZodType; valueType: z.core.$ZodType } };
+      
+      for (let i = 0; i < mapSize; i++) {
+        const key = this.generateFromSchema(mapWithDef.def.keyType);
+        const value = this.generateFromSchema(mapWithDef.def.valueType);
+        mapData.set(key, value);
+      }
+      
+      return mapData;
+    }
+
+    if (schema instanceof z.ZodTuple) {
+      const tupleWithDef = schema as unknown as { def: { items: z.core.$ZodType[]; rest: z.core.$ZodType | null } };
+      const fixedTupleItems = tupleWithDef.def.items?.map((itemSchema: z.core.$ZodType) => 
+        this.generateFromSchema(itemSchema)
+      ) ?? [];
+      
+      const restTupleItems = tupleWithDef.def.rest ? Array.from(
+        { length: this.faker.number.int({ min: Constants.DEFAULT_TUPLE_REST_MIN, max: Constants.DEFAULT_TUPLE_REST_MAX }) },
+        () => this.generateFromSchema(tupleWithDef.def.rest!)
+      ) : [];
+      
+      return [...fixedTupleItems, ...restTupleItems];
+    }
+
+    if (schema instanceof z.ZodFunction) {
+      const functionWithDef = schema as unknown as { def: { output: z.core.$ZodType } };
+      return (() => {
+        return this.generateFromSchema(functionWithDef.def.output);
+      }) as MockValue;
+    }
+
+    if (schema instanceof z.ZodPromise) {
+      const promiseWithDef = schema as unknown as { def: { type: z.core.$ZodType } };
+      return Promise.resolve(this.generateFromSchema(promiseWithDef.def.type));
+    }
+
+    if (this.isBrandedType(schema)) {
+      return this.generateFromSchema(schema.unwrap());
+    }
+
+    if (schema instanceof z.ZodReadonly) {
+      return this.generateFromSchema(schema.def.innerType);
+    }
+
+    if (schema instanceof z.ZodDiscriminatedUnion) {
+      const unionOptions = Array.from(schema.def.options.values());
+      const selectedOption = this.faker.helpers.arrayElement(unionOptions);
+      return this.generateFromSchema(selectedOption);
+    }
+
+    if (this.isEffectsType(schema)) {
+      const inputValue = this.generateFromSchema(schema.def.schema);
+      
+      if (schema.def.effect?.type === Constants.EFFECT_TYPE_TRANSFORM) {
+        try {
+          return schema.def.effect.transform(inputValue, { addIssue: () => undefined, path: [] });
+        } catch {
+          return inputValue;
+        }
+      }
+      
+      return inputValue;
+    }
+
+    if (schema instanceof z.ZodBigInt) {
+      const checks = (schema.def.checks as ZodCheck[]) || [];
+      const minConstraint = checks.find((c) => c._zod.def.check === 'greater_than');
+      const maxConstraint = checks.find((c) => c._zod.def.check === 'less_than');
+      const minBigInt = minConstraint ? BigInt((minConstraint._zod.def as z.core.$ZodCheckGreaterThanDef).value as bigint) : Constants.DEFAULT_BIGINT_MIN;
+      const maxBigInt = maxConstraint ? BigInt((maxConstraint._zod.def as z.core.$ZodCheckLessThanDef).value as bigint) : Constants.DEFAULT_BIGINT_MAX;
+      
+      const normalizedMin = minBigInt < maxBigInt ? minBigInt : maxBigInt;
+      const normalizedMax = minBigInt < maxBigInt ? maxBigInt : minBigInt;
+      
+      const minNumber = Number(normalizedMin);
+      const maxNumber = Number(normalizedMax);
+      const generatedNumber = this.faker.number.int({ min: minNumber, max: maxNumber });
+      
+      return BigInt(generatedNumber);
+    }
+
+    if (schema instanceof z.ZodNaN) {
+      return NaN;
     }
 
     return null;
   }
 
-  private generateString(schema: z.core.$ZodString): string {
-    const value = schema as z._ZodString;
+  private generateStringValue(schema: z.core.$ZodString): string {
+    const { minLength, maxLength, format } = schema as unknown as ZodStringWithPublicProps;
 
-    const { minLength, maxLength, format } = value;
-
-    if (format === 'email') {
-      return faker.internet.email();
+    if (format === Constants.FORMAT_EMAIL) {
+      return this.faker.internet.email();
     }
 
-    if (format === 'regex') {
-      type RegexType = z.core.$ZodCheckDef & { pattern: string }
-      const regex = (value.def.checks?.find(c => (c._zod.def as RegexType)?.pattern)?._zod.def as RegexType)?.pattern as string
-      const randexp = new RandExp(regex);
-      return randexp.gen();
+    if (format === Constants.FORMAT_REGEX) {
+      const stringWithDef = schema as unknown as ZodStringWithPublicProps;
+      const regexCheck = stringWithDef.def.checks?.find((c: ZodCheck) => (c._zod.def as ZodCheckRegexDef).format === 'regex') as ZodCheckRegex | undefined;
+      const regexPattern = (regexCheck?._zod.def as ZodCheckRegexDef)?.pattern;
+      const regexGenerator = new RandExp(regexPattern);
+      
+      regexGenerator.randInt = (min: number, max: number) => this.faker.number.int({ min, max });
+      
+      if (maxLength) {
+        regexGenerator.max = maxLength;
+      }
+      
+      return regexGenerator.gen();
     }
 
-    if (format === 'url') {
-      return faker.internet.url();
+    if (format === Constants.FORMAT_URL) {
+      return this.faker.internet.url();
     }
 
-    if (format === 'uuid') {
-      return faker.string.uuid();
+    if (format === Constants.FORMAT_UUID) {
+      return this.faker.string.uuid();
     }
 
-    if (format === 'ulid') {
-      return faker.string.ulid();
+    if (format === Constants.FORMAT_ULID) {
+      return this.faker.string.ulid();
     }
 
     if (format === 'date-time' || format === 'datetime') {
-      return faker.date.recent().toISOString();
+      return this.faker.date.recent().toISOString();
     }
 
-    const min = 10
-    const max = this.getRandomNumber(100, min)
-    return faker.string.alpha({
-      length: {
-        min: minLength ?? min,
-        max: maxLength ?? max
-      }
-    });
+    const minStringLength = minLength ?? Constants.DEFAULT_STRING_MIN_LENGTH;
+    const maxStringLength = maxLength ?? Constants.DEFAULT_STRING_MAX_LENGTH;
+    const stringLength = this.faker.number.int({ min: minStringLength, max: maxStringLength });
+
+    return this.faker.string.alpha({ length: stringLength });
 
   }
 
-  private getRandomNumber = (max: number, sum = 1) => {
-    return Math.floor(Math.random() * (max + 1)) + sum;
+  private generateNumberValue(schema: z.ZodNumber): number {
+    const { minValue, maxValue, format } = schema as unknown as ZodNumberWithPublicProps;
+
+    const hasDecimalBounds = !Number.isInteger(minValue) || !Number.isInteger(maxValue);
+    const hasFloatFormat = format !== null && Constants.FLOAT_FORMATS.includes(format as typeof Constants.FLOAT_FORMATS[number]);
+    const isFloat = hasFloatFormat || hasDecimalBounds;
+    
+    const { min, max } = this.getNormalizedBounds(minValue, maxValue, isFloat);
+    
+    return isFloat 
+      ? this.faker.number.float({ min, max }) 
+      : this.faker.number.int({ min, max });
   }
 
-  private generateNumber(schema: z.ZodNumber): number {
-
-    const value = schema as z._ZodNumber;
-
-    const { minValue, maxValue, format } = value;
-
-    if (!format) {
-      const { min, max } = this.getMinMax(minValue, maxValue);
-      return faker.number.int({
-        min,
-        max
-      });
-    }
-    if (format === 'int' || format === 'integer' || format === 'int32' || format === 'int64' || format === 'uint' || format === 'uint32' || format === 'uint64' || format === 'safeint' || format === 'safeinteger') {
-      const min = 1
-      return faker.number.int({
-        min: minValue ?? min,
-        max: maxValue ?? this.getRandomNumber(1000, min)
-      });
-    }
-
-    if (format === 'float' || format === 'double' || format === 'decimal' || format === 'float32' || format === 'float64') {
-      const min = 1.5
-      return faker.number.float({
-        min: minValue ?? min,
-        max: maxValue ?? this.getRandomNumber(1000, min)
-      });
-    }
-
-    const min = 1
-    return faker.number.int({
-      min: minValue ?? min,
-      max: maxValue ?? this.getRandomNumber(1000, min)
-    });
-
+  private getBrazilianMockValue(type: 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep'): string {
+    return this.faker.helpers.arrayElement(Constants.BRAZILIAN_MOCK_DATA[type]);
+  }
+  private getNormalizedBounds(minValue: number | null, maxValue: number | null, isFloat: boolean = false) {
+    const isInfinity = (v: number | null) => v === Infinity || v === -Infinity;
+    const defaultMin = isFloat ? Constants.DEFAULT_FLOAT_MIN : Constants.DEFAULT_INT_MIN;
+    const defaultMax = isFloat ? Constants.DEFAULT_FLOAT_MAX : Constants.DEFAULT_INT_MAX;
+    
+    const minBound = minValue === null || isInfinity(minValue) ? defaultMin : minValue;
+    const maxBound = maxValue === null || isInfinity(maxValue) ? defaultMax : maxValue;
+    
+    return minBound > maxBound ? { min: maxBound, max: minBound } : { min: minBound, max: maxBound };
   }
 
-  getBralizilianMockedData() {
-    return {
-      cpf: faker.helpers.arrayElement(this.validCPF),
-      cnpj: faker.helpers.arrayElement(this.validCNPJ),
-      rg: faker.helpers.arrayElement(this.validRG),
-      phoneBR: faker.helpers.arrayElement(this.validPhoneBR),
-      cep: faker.helpers.arrayElement(this.validCEP)
-    }
-  }
-  private getMinMax(minValue: number | null, maxValue: number | null) {
-    const infinity = [Infinity, -Infinity]
-    const isMinInfinity = infinity.some(i => i === minValue)
-    const isMaxInfinity = infinity.some(i => i === maxValue)
-    const minSafe = this.getRandomNumber(1000)
-    const min = isMinInfinity ? minSafe : (minValue || 1);
-    const max = isMaxInfinity ? this.getRandomNumber(1000, minSafe) : (maxValue || this.getRandomNumber(1000, minSafe));
-    return { min, max };
+  private generateUnknownTypeValue(): MockValue {
+    const typeGenerators: Record<string, () => MockValue> = {
+      string: () => this.faker.lorem.words(Constants.DEFAULT_ANY_WORDS_COUNT),
+      number: () => this.faker.number.int(Constants.DEFAULT_ANY_NUMBER_MAX),
+      boolean: () => this.faker.datatype.boolean(),
+      date: () => this.faker.date.recent(),
+      array: () => Array.from({ length: Constants.DEFAULT_ANY_ARRAY_LENGTH }, () => this.faker.lorem.word()),
+      object: () => ({ [this.faker.lorem.word()]: this.faker.lorem.words(Constants.DEFAULT_ANY_WORDS_COUNT) })
+    };
+    
+    const selectedType = this.faker.helpers.arrayElement(Object.keys(typeGenerators));
+    return typeGenerators[selectedType]();
   }
 
-  private generateAnyValue(): AllType {
-    const types = ['string', 'number', 'boolean', 'date', 'array', 'object'] as const;
-    const randomType = faker.helpers.arrayElement(types);
-
-    if (randomType === 'string') return faker.lorem.words(2);
-    if (randomType === 'number') return faker.number.int(100);
-    if (randomType === 'boolean') return faker.datatype.boolean();
-    if (randomType === 'date') return faker.date.recent();
-    if (randomType === 'array') return Array.from({ length: 2 }, () => faker.lorem.word());
-    if (randomType === 'object') return { [faker.lorem.word()]: faker.lorem.words(2) };
-
-    return null;
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && 
+           value !== null && 
+           !Array.isArray(value) && 
+           !(value instanceof Date) && 
+           !(value instanceof Set) && 
+           !(value instanceof Map);
   }
 
-  private validCPF = [
-    "12345678909",
-    "52998224725",
-    "11144477735",
-    "86473782905",
-    "40723177808"
-  ];
+  private hasMetadata(schema: unknown): schema is { meta: () => Record<string, unknown> } {
+    if (schema === null || typeof schema !== Constants.TYPE_OBJECT) return false;
+    const obj = schema as Record<string, unknown>;
+    return 'meta' in obj && typeof obj.meta === 'function';
+  }
 
-  private validCNPJ = [
-    "11222333000181",
-    "60676960000106",
-    "06990590000123",
-    "33112511000130",
-    "00111222000189"
-  ];
+  private isBrandedType(schema: unknown): schema is { unwrap: () => z.core.$ZodType } {
+    if (schema === null || typeof schema !== Constants.TYPE_OBJECT) return false;
+    const obj = schema as Record<string, unknown>;
+    return 'unwrap' in obj && typeof obj.unwrap === Constants.TYPE_FUNCTION;
+  }
 
-
-  private validRG = [
-    "238192611",
-    "110209394",
-    "202455518",
-    "437062053",
-    "207022689"
-  ];
-
-  private validPhoneBR = [
-    "11987654321",
-    "21998765432",
-    "31991234567",
-    "41992345678",
-    "51993456789"
-  ];
-
-  private validCEP = [
-    "01001000",
-    "20040010",
-    "30130010",
-    "80010000",
-    "90010000"
-  ];
+  private isEffectsType(schema: unknown): schema is { def: { schema: z.core.$ZodType; effect?: { type: string; transform: Function } } } {
+    if (typeof schema !== Constants.TYPE_OBJECT || schema === null) return false;
+    const def = (schema as Record<string, unknown>).def as Record<string, unknown> | undefined;
+    return def?.typeName === Constants.ZOD_TYPE_EFFECTS;
+  }
 
 }

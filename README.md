@@ -4,21 +4,29 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![TypeScript Ready](https://img.shields.io/badge/TypeScript-Ready-blue.svg)
 
-A powerful and flexible class‑based utility for generating realistic mock data directly from Zod schemas — ideal for testing, prototyping, fixtures, and CI automation.
+**Simple, type-safe mock data generator for Zod schemas with built-in Brazilian format support 🇧🇷**
 
-## ✨ Features
+A developer-friendly, class-based utility for generating realistic test data from Zod schemas. Perfect for testing, prototyping, and fixtures — with zero configuration and maximum type safety.
 
-- ✅ Class-based API for full control and extensibility  
-- ✅ Faker.js integration for realistic fake data  
-- ✅ Type‑safe overrides with full TypeScript support  
-- ✅ Deep Zod schema integration with nested object support  
-- ✅ Custom formats: **CPF, CNPJ, RG, CEP, phone BR**  
-- ✅ Deterministic generation via Faker seeding  
-- ✅ Batch creation with `generateMany`  
-- ✅ Smart prefixing for unique, identifiable data  
-- ✅ Index‑based generation for sequential data  
-- ✅ Flexible field customization  
-- ✅ Full Zod schema support (Union, Intersection, Record, Lazy, Pipe, etc.)
+## ✨ Why Choose This Library?
+
+### 🎯 **Simplicity First**
+- **Clean class-based API** — instantiate once, generate many times
+- **Zero configuration** — works out of the box with any Zod schema
+- **Type-safe overrides** — full TypeScript intellisense and validation
+- **Intuitive seeding** — `mock.seed(123)` for deterministic tests
+
+### 🇧🇷 **Brazilian Format Support** (Unique Feature)
+- **CPF, CNPJ, RG** — built-in Brazilian document formats
+- **CEP** — postal code generation
+- **Phone BR** — Brazilian phone numbers
+- **Zero dependencies** — no extra libraries needed
+
+### ⚡ **Developer Experience**
+- **Faker.js integration** — realistic, locale-aware fake data
+- **Custom Faker injection** — use different locales per test
+- **Batch generation** — `generateMany()` for multiple mocks
+- **Full Zod v4 support** — Union, Intersection, Record, Lazy, Pipe, and more
 
 ---
 
@@ -127,9 +135,50 @@ userMock.generateMany(3, {
 
 ---
 
-## 🧠 Advanced Zod Schema Support
+## 🇧🇷 Brazilian Formats (Unique Feature)
 
-### Complex Zod Types
+Generate valid Brazilian documents and identifiers with zero configuration:
+
+```ts
+const userSchema = z.object({
+  cpf: z.string().meta({ format: 'cpf' }),      // 11-digit CPF
+  cnpj: z.string().meta({ format: 'cnpj' }),   // 14-digit CNPJ
+  rg: z.string().meta({ format: 'rg' }),       // Brazilian ID
+  phone: z.string().meta({ format: 'phoneBR' }), // BR phone number
+  cep: z.string().meta({ format: 'cep' }),     // Postal code
+});
+
+const mock = new ZodMockSchema(userSchema);
+const user = mock.generate();
+// {
+//   cpf: "52998224725",
+//   cnpj: "60676960000106",
+//   rg: "238192611",
+//   phone: "11987654321",
+//   cep: "01001000"
+// }
+```
+
+### Why This Matters
+
+Brazilian formats require specific validation rules that generic mock generators don't understand. This library provides:
+
+- ✅ **Pre-validated samples** — all generated values pass real validation
+- ✅ **No external APIs** — works offline, no rate limits
+- ✅ **Deterministic with seeds** — same seed = same CPF/CNPJ
+- ✅ **Works in arrays and nested objects** — generate multiple documents easily
+
+```ts
+// Generate multiple users with valid Brazilian docs
+const users = mock.generateMany(10);
+users.forEach(u => console.log(u.cpf)); // All valid CPFs
+```
+
+---
+
+## 🧠 Full Zod Schema Support
+
+Supports all Zod types including advanced patterns:
 
 ```ts
 const complexSchema = z.object({
@@ -145,22 +194,6 @@ const complexSchema = z.object({
 
 const complexMock = new ZodMockSchema(complexSchema);
 complexMock.generate();
-```
-
----
-
-## 🇧🇷 Custom Brazilian Formats
-
-```ts
-const brazilSchema = z.object({
-  cpf: z.string().meta({ format: 'cpf' }),
-  cnpj: z.string().meta({ format: 'cnpj' }),
-  rg: z.string().meta({ format: 'rg' }),
-  phone: z.string().meta({ format: 'phoneBR' }),
-  cep: z.string().meta({ format: 'cep' }),
-});
-
-new ZodMockSchema(brazilSchema).generate();
 ```
 
 ---
@@ -231,8 +264,36 @@ export class UserFactory {
 ### Deterministic Tests
 
 ```ts
-faker.seed(123);
+const userMock = new ZodMockSchema(userSchema);
+userMock.seed(123);
 const user = userMock.generate();
+```
+
+### Custom Faker Instance
+
+Inject a custom Faker instance with different locales or configurations:
+
+```ts
+import { Faker, pt_BR } from '@faker-js/faker';
+
+const customFaker = new Faker({ locale: pt_BR });
+const user = userMock.generate({ faker: customFaker });
+```
+
+### Parallel Tests with Isolated Faker Instances
+
+```ts
+test('parallel test 1', () => {
+  const faker1 = new Faker({ locale: en });
+  faker1.seed(100);
+  const user = userMock.generate({ faker: faker1 });
+});
+
+test('parallel test 2', () => {
+  const faker2 = new Faker({ locale: es });
+  faker2.seed(200);
+  const user = userMock.generate({ faker: faker2 });
+});
 ```
 
 ### Integration Testing
@@ -285,11 +346,47 @@ Generates multiple mock objects.
 
 ## 🧹 Best Practices
 
-- Reuse mock instances  
-- Use overrides for business rules  
-- Centralize factories  
-- Use prefixing for unique data  
-- Seed Faker for deterministic tests  
+### Keep It Simple
+```ts
+// ✅ Good: Reuse instances
+const userMock = new ZodMockSchema(userSchema);
+const user1 = userMock.generate();
+const user2 = userMock.generate();
+
+// ❌ Avoid: Creating new instances every time
+const user1 = new ZodMockSchema(userSchema).generate();
+const user2 = new ZodMockSchema(userSchema).generate();
+```
+
+### Use Overrides for Business Logic
+```ts
+// ✅ Good: Override specific fields
+userMock.generate({ overrides: { role: 'admin', status: 'active' } });
+
+// ❌ Avoid: Manually modifying generated data
+const user = userMock.generate();
+user.role = 'admin'; // Bypasses Zod validation
+```
+
+### Centralize Test Factories
+```ts
+// ✅ Good: Single source of truth
+export const UserFactory = new ZodMockSchema(userSchema);
+
+// In tests:
+import { UserFactory } from './factories';
+const admin = UserFactory.generate({ overrides: { role: 'admin' } });
+```
+
+### Use Seeds for Deterministic Tests
+```ts
+// ✅ Good: Reproducible tests
+test('user creation', () => {
+  userMock.seed(12345);
+  const user = userMock.generate();
+  expect(user.name).toBe('Alice'); // Always the same with same seed
+});
+```  
 
 ---
 

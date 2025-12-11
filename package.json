@@ -1,7 +1,7 @@
 {
   "name": "@mikemajesty/zod-mock-schema",
   "version": "1.0.12",
-  "description": "Generate mock data from Zod schemas",
+  "description": "Simple, type-safe mock data generator for Zod schemas with Brazilian format support (CPF, CNPJ, RG, CEP)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
@@ -20,9 +20,18 @@
     "mock",
     "testing",
     "faker",
-    "schema"
+    "schema",
+    "typescript",
+    "type-safe",
+    "brazilian",
+    "cpf",
+    "cnpj",
+    "brazil",
+    "fixtures",
+    "test-data",
+    "mock-generator"
   ],
-  "author": "Seu Nome",
+  "author": "Mike Lima",
   "license": "MIT",
   "dependencies": {
     "@faker-js/faker": "^10.1.0",

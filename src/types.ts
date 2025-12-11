@@ -1,4 +1,35 @@
 import { z } from 'zod';
+import { Faker } from '@faker-js/faker';
+
+// Public Zod v4 types for checks
+export type ZodCheck = z.core.$ZodCheck;
+export type ZodCheckMinLength = z.core.$ZodCheckMinLength;
+export type ZodCheckMaxLength = z.core.$ZodCheckMaxLength;
+export type ZodCheckMinSize = z.core.$ZodCheckMinSize;
+export type ZodCheckMaxSize = z.core.$ZodCheckMaxSize;
+export type ZodCheckRegex = z.core.$ZodCheckRegex;
+export type ZodCheckRegexDef = z.core.$ZodCheckRegexDef;
+export type ZodCheckMinLengthDef = z.core.$ZodCheckMinLengthDef;
+export type ZodCheckMaxLengthDef = z.core.$ZodCheckMaxLengthDef;
+export type ZodCheckMinSizeDef = z.core.$ZodCheckMinSizeDef;
+export type ZodCheckMaxSizeDef = z.core.$ZodCheckMaxSizeDef;
+
+export type MockValue = string | number | boolean | Date | null | undefined | Record<string, unknown> | any | MockValue[];
+
+// Internal types for runtime properties not typed in z.core
+export type ZodStringWithPublicProps = {
+  minLength: number | null;
+  maxLength: number | null;
+  format: string | null;
+  def: { checks?: ZodCheck[] };
+};
+
+export type ZodNumberWithPublicProps = {
+  minValue: number | null;
+  maxValue: number | null;
+  format: string | null;
+};
+
 /**
  * Configuration options for generating a single mock data object.
  * 
@@ -17,27 +48,30 @@ export type MockOptions<T = any> = {
    * ```
    */
   overrides?: Partial<T>;
+  
+  /**
+   * Custom Faker instance to use for mock generation.
+   * Useful for custom locales, parallel tests, or advanced Faker configuration.
+   * 
+   * @example
+   * ```typescript
+   * import { Faker, pt_BR } from '@faker-js/faker';
+   * const customFaker = new Faker({ locale: pt_BR });
+   * const options: MockOptions<User> = {
+   *   faker: customFaker
+   * };
+   * ```
+   */
+  faker?: Faker;
 }
 
 /**
  * Configuration options for generating multiple mock data objects.
- * Extends MockOptions with additional configuration capabilities.
+ * Extends MockOptions to inherit override and faker injection capabilities.
  * 
  * @template T - The type of data being generated.
  */
-export type MockManyOptions<T = any> = {
-  /**
-   * Partial object containing property overrides for all generated data objects.
-   * 
-   * @example
-   * ```typescript
-   * const options: MockManyOptions<User> = {
-   *   overrides: { companyId: 'comp_123', status: 'active' }
-   * };
-   * ```
-   */
-  overrides?: Partial<T>;
-}
+export type MockManyOptions<T = any> = MockOptions<T>;
 
 /**
  * Utility type to extract the TypeScript type from a Zod schema.
@@ -60,23 +94,6 @@ export type MockManyOptions<T = any> = {
  * ```
  */
 export type ExtractType<T extends z.ZodType<any>> = z.infer<T>;
-
-/**
- * Recursive type representing all possible values that can be generated.
- * Used internally for mock data generation.
- * 
- * @internal
- */
-export type AllType = 
-  | string 
-  | number 
-  | boolean 
-  | Date 
-  | null 
-  | undefined 
-  | Record<string, unknown> 
-  | any 
-  | AllType[];
 
 /**
  * Main class for generating mock data based on Zod schemas.
@@ -118,68 +135,4 @@ export interface ZodMockSchema<T> {
    * The Zod schema used for mock data generation.
    */
   readonly schema: z.ZodSchema<T>;
-}
-
-/**
- * Interface defining the public API of ZodMockSchema.
- * This separates the implementation from the public contract.
- */
-export interface ZodMockSchemaInterface<T> {
-  /**
-   * Generates a single mock data object based on the Zod schema.
-   * 
-   * @template D - The output type (must extend T)
-   * @param overrides - Optional configuration with property overrides
-   * @returns A mock data object that conforms to the schema
-   * 
-   * @example
-   * ```typescript
-   * const data = mock.generate();
-   * const customData = mock.generate({ overrides: { name: 'John' } });
-   * ```
-   */
-  generate<D extends T>(overrides?: MockOptions<Partial<T>>): D;
-  
-  /**
-   * Generates multiple mock data objects.
-   * 
-   * @template D - The output type (must extend T)
-   * @param count - Number of objects to generate
-   * @param options - Configuration options for generation
-   * @returns An array of mock data objects
-   * 
-   * @example
-   * ```typescript
-   * const items = mock.generateMany(10);
-   * const itemsWithOverrides = mock.generateMany(5, {
-   *   overrides: { status: 'active' }
-   * });
-   * ```
-   */
-  generateMany<D extends Partial<T>>(count: number, options?: MockManyOptions<Partial<T>>): D[];
-  
-  /**
-   * Gets mock data for Brazilian-specific formats.
-   * Useful for generating valid Brazilian documents and contacts.
-   * 
-   * @returns Object with valid Brazilian data:
-   * - `cpf`: Brazilian CPF (Cadastro de Pessoas Físicas)
-   * - `cnpj`: Brazilian CNPJ (Cadastro Nacional da Pessoa Jurídica)
-   * - `rg`: Brazilian RG (Registro Geral)
-   * - `phoneBR`: Brazilian phone number
-   * - `cep`: Brazilian postal code
-   * 
-   * @example
-   * ```typescript
-   * const brData = mock.getBralizilianMockedData();
-   * console.log(brData.cpf); // "123.456.789-09"
-   * ```
-   */
-  getBralizilianMockedData(): {
-    cpf: string;
-    cnpj: string;
-    rg: string;
-    phoneBR: string;
-    cep: string;
-  };
 }
