@@ -1,7 +1,7 @@
 import { Faker, en } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps } from './types';
+import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps, BrazilianFormat } from './types';
 import { Constants } from './constants';
 
 export class ZodMockSchema<T> {
@@ -12,7 +12,8 @@ export class ZodMockSchema<T> {
   }
 
   seed(seed: number | number[]): this {
-    this.faker.seed(Array.isArray(seed) ? seed : [seed]);
+    const seedArray = Array.isArray(seed) ? seed : [seed];
+    this.faker.seed(seedArray);
     return this;
   }
 
@@ -26,15 +27,16 @@ export class ZodMockSchema<T> {
       
       const mockData = this.generateFromSchema(this.schema);
       
-      if (overrides && 'overrides' in overrides) {
-        if (this.isPlainObject(overrides.overrides) && this.isPlainObject(mockData)) {
-          const merged = { ...(mockData as object), ...overrides.overrides };
-          return this.schema.parse(merged) as D;
-        }
-        return this.schema.parse(overrides.overrides) as D;
+      if (!this.hasCustomOverrides(overrides)) {
+        return this.schema.parse(mockData) as D;
       }
       
-      return this.schema.parse(mockData) as D;
+      if (this.isPlainObject(overrides.overrides) && this.isPlainObject(mockData)) {
+        const merged = { ...(mockData as object), ...overrides.overrides };
+        return this.schema.parse(merged) as D;
+      }
+      
+      return this.schema.parse(overrides.overrides) as D;
     } finally {
       this.faker = originalFaker;
     }
@@ -50,7 +52,7 @@ export class ZodMockSchema<T> {
   private generateFromSchema(schema: z.core.$ZodType): MockValue {
     if (this.hasMetadata(schema)) {
       const meta = (schema as { meta: () => Record<string, unknown> }).meta();
-      const brazilianFormats: Record<string, 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep'> = {
+      const brazilianFormats: Record<string, BrazilianFormat> = {
         [Constants.FORMAT_CPF]: 'cpf',
         [Constants.FORMAT_CNPJ]: 'cnpj',
         [Constants.FORMAT_RG]: 'rg',
@@ -90,8 +92,13 @@ export class ZodMockSchema<T> {
       const constraints = this.getChecks(schema);
       const minConstraint = constraints.find((c) => c._zod.def.check === 'greater_than');
       const maxConstraint = constraints.find((c) => c._zod.def.check === 'less_than');
-      const minDateBound = minConstraint ? new Date((minConstraint._zod.def as z.core.$ZodCheckGreaterThanDef).value as Date) : undefined;
-      const maxDateBound = maxConstraint ? new Date((maxConstraint._zod.def as z.core.$ZodCheckLessThanDef).value as Date) : undefined;
+      
+      const getDateBound = (constraint: ZodCheck | undefined): Date | undefined => {
+        if (!constraint) return undefined;
+        return new Date((constraint._zod.def as z.core.$ZodCheckGreaterThanDef | z.core.$ZodCheckLessThanDef).value as Date);
+      };
+      const minDateBound = getDateBound(minConstraint);
+      const maxDateBound = getDateBound(maxConstraint);
       
       if (minDateBound && maxDateBound) {
         return this.faker.date.between({ from: minDateBound, to: maxDateBound });
@@ -114,19 +121,18 @@ export class ZodMockSchema<T> {
       const maxCheck = checks.find((c) => c._zod.def.check === 'max_length') as ZodCheckMaxLength | undefined;
       const minLength = (minCheck?._zod.def as ZodCheckMinLengthDef)?.minimum ?? Constants.DEFAULT_ARRAY_MIN_LENGTH;
       const maxLength = (maxCheck?._zod.def as ZodCheckMaxLengthDef)?.maximum ?? Constants.DEFAULT_ARRAY_MAX_LENGTH;
-      const arrayLength = this.faker.number.int({ min: Math.min(minLength, maxLength), max: Math.max(minLength, maxLength) });
+      const arrayLength = this.faker.number.int({ min: minLength, max: maxLength });
 
       return Array.from({ length: arrayLength }, () => this.generateFromSchema(schema.element));
     }
 
     if (schema instanceof z.ZodObject) {
-      const objectData: Record<string, MockValue> = {};
-      const schemaShape = schema.shape;
-
-      for (const [propertyKey, propertySchema] of Object.entries(schemaShape)) {
-        objectData[propertyKey] = this.generateFromSchema(propertySchema as z.core.$ZodType);
-      }
-      return objectData;
+      return Object.fromEntries(
+        Object.entries(schema.shape).map(([key, propertySchema]) => [
+          key,
+          this.generateFromSchema(propertySchema as z.core.$ZodType)
+        ])
+      );
     }
 
     if (schema instanceof z.ZodEnum) {
@@ -149,19 +155,17 @@ export class ZodMockSchema<T> {
 
       const propertiesCount = this.faker.number.int({ min: Constants.DEFAULT_RECORD_MIN_PROPERTIES, max: Constants.DEFAULT_RECORD_MAX_PROPERTIES });
 
-      return Array.from({ length: propertiesCount })
-        .reduce((recordData, _, propertyIndex) => {
-          const propertyKey = recordKeySchema instanceof z.ZodString
-            ? this.generateStringValue(recordKeySchema)
-            : recordKeySchema instanceof z.ZodNumber
-              ? this.generateNumberValue(recordKeySchema).toString()
-              : `key${propertyIndex}`;
+      const generateRecordKey = (index: number): string => {
+        if (recordKeySchema instanceof z.ZodString) return this.generateStringValue(recordKeySchema);
+        if (recordKeySchema instanceof z.ZodNumber) return this.generateNumberValue(recordKeySchema).toString();
+        return `key${index}`;
+      };
 
-          return {
-            ...recordData as object,
-            [propertyKey]: this.generateFromSchema(recordValueSchema)
-          };
-        }, {} as Record<string, MockValue>);
+      return Array.from({ length: propertiesCount })
+        .reduce((recordData, _, index) => ({
+          ...recordData as object,
+          [generateRecordKey(index)]: this.generateFromSchema(recordValueSchema)
+        }), {} as Record<string, MockValue>);
     }
 
     if (schema instanceof z.ZodOptional) return this.generateFromSchema(schema.unwrap());
@@ -196,10 +200,7 @@ export class ZodMockSchema<T> {
       const minSetSize = (minConstraint?._zod.def as ZodCheckMinSizeDef)?.minimum ?? Constants.DEFAULT_SET_MIN_SIZE;
       const maxSetSize = (maxConstraint?._zod.def as ZodCheckMaxSizeDef)?.maximum ?? Constants.DEFAULT_SET_MAX_SIZE;
       
-      const targetSize = this.faker.number.int({ 
-        min: Math.min(minSetSize, maxSetSize), 
-        max: Math.max(minSetSize, maxSetSize) 
-      });
+      const targetSize = this.faker.number.int({ min: minSetSize, max: maxSetSize });
       
       const items = new Set<MockValue>();
       const setWithDef = schema as unknown as { def: { valueType: z.core.$ZodType; checks: ZodCheck[] } };
@@ -232,10 +233,14 @@ export class ZodMockSchema<T> {
         this.generateFromSchema(itemSchema)
       ) ?? [];
       
-      const restTupleItems = tupleWithDef.def.rest ? Array.from(
+      if (!tupleWithDef.def.rest) {
+        return fixedTupleItems;
+      }
+      
+      const restTupleItems = Array.from(
         { length: this.faker.number.int({ min: Constants.DEFAULT_TUPLE_REST_MIN, max: Constants.DEFAULT_TUPLE_REST_MAX }) },
         () => this.generateFromSchema(tupleWithDef.def.rest!)
-      ) : [];
+      );
       
       return [...fixedTupleItems, ...restTupleItems];
     }
@@ -279,11 +284,16 @@ export class ZodMockSchema<T> {
       const checks = this.getChecks(schema);
       const minConstraint = checks.find((c) => c._zod.def.check === 'greater_than');
       const maxConstraint = checks.find((c) => c._zod.def.check === 'less_than');
-      const minBigInt = minConstraint ? BigInt((minConstraint._zod.def as z.core.$ZodCheckGreaterThanDef).value as bigint) : Constants.DEFAULT_BIGINT_MIN;
-      const maxBigInt = maxConstraint ? BigInt((maxConstraint._zod.def as z.core.$ZodCheckLessThanDef).value as bigint) : Constants.DEFAULT_BIGINT_MAX;
       
-      const minNumber = Number(minBigInt < maxBigInt ? minBigInt : maxBigInt);
-      const maxNumber = Number(minBigInt < maxBigInt ? maxBigInt : minBigInt);
+      const getBigIntBound = (constraint: ZodCheck | undefined, defaultValue: bigint): bigint => {
+        if (!constraint) return defaultValue;
+        return BigInt((constraint._zod.def as z.core.$ZodCheckGreaterThanDef | z.core.$ZodCheckLessThanDef).value as bigint);
+      };
+      const minBigInt = getBigIntBound(minConstraint, Constants.DEFAULT_BIGINT_MIN);
+      const maxBigInt = getBigIntBound(maxConstraint, Constants.DEFAULT_BIGINT_MAX);
+      
+      const minNumber = minBigInt < maxBigInt ? Number(minBigInt) : Number(maxBigInt);
+      const maxNumber = minBigInt < maxBigInt ? Number(maxBigInt) : Number(minBigInt);
       const generatedNumber = this.faker.number.int({ min: minNumber, max: maxNumber });
       
       return BigInt(generatedNumber);
@@ -299,9 +309,15 @@ export class ZodMockSchema<T> {
   private generateStringValue(schema: z.core.$ZodString): string {
     const { minLength, maxLength, format } = schema as unknown as ZodStringWithPublicProps;
 
-    if (format === Constants.FORMAT_EMAIL) {
-      return this.faker.internet.email();
-    }
+    const formatGenerators = {
+      [Constants.FORMAT_EMAIL]: this.faker.internet.email,
+      [Constants.FORMAT_URL]: this.faker.internet.url,
+      [Constants.FORMAT_UUID]: this.faker.string.uuid,
+      [Constants.FORMAT_ULID]: this.faker.string.ulid
+    };
+
+    const simpleFormatResult = formatGenerators[format as keyof typeof formatGenerators]?.();
+    if (simpleFormatResult) return simpleFormatResult;
 
     if (format === Constants.FORMAT_REGEX) {
       const stringWithDef = schema as unknown as ZodStringWithPublicProps;
@@ -318,18 +334,6 @@ export class ZodMockSchema<T> {
       return regexGenerator.gen();
     }
 
-    if (format === Constants.FORMAT_URL) {
-      return this.faker.internet.url();
-    }
-
-    if (format === Constants.FORMAT_UUID) {
-      return this.faker.string.uuid();
-    }
-
-    if (format === Constants.FORMAT_ULID) {
-      return this.faker.string.ulid();
-    }
-
     if (['date-time', 'datetime'].includes(format as `date-time` | `datetime`)) {
       return this.faker.date.recent().toISOString();
     }
@@ -339,7 +343,6 @@ export class ZodMockSchema<T> {
     const stringLength = this.faker.number.int({ min: minStringLength, max: maxStringLength });
 
     return this.faker.string.alpha({ length: stringLength });
-
   }
 
   private generateNumberValue(schema: z.ZodNumber): number {
@@ -357,7 +360,7 @@ export class ZodMockSchema<T> {
     return this.faker.number.int({ min, max });
   }
 
-  private getBrazilianMockValue(type: 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep'): string {
+  private getBrazilianMockValue(type: BrazilianFormat): string {
     return this.faker.helpers.arrayElement(Constants.BRAZILIAN_MOCK_DATA[type]);
   }
 
@@ -370,8 +373,12 @@ export class ZodMockSchema<T> {
     const defaultMin = isFloat ? Constants.DEFAULT_FLOAT_MIN : Constants.DEFAULT_INT_MIN;
     const defaultMax = isFloat ? Constants.DEFAULT_FLOAT_MAX : Constants.DEFAULT_INT_MAX;
     
-    const minBound = minValue === null || isInfinity(minValue) ? defaultMin : minValue;
-    const maxBound = maxValue === null || isInfinity(maxValue) ? defaultMax : maxValue;
+    const getBound = (value: number | null, defaultValue: number): number => {
+      if (value === null || isInfinity(value)) return defaultValue;
+      return value;
+    };
+    const minBound = getBound(minValue, defaultMin);
+    const maxBound = getBound(maxValue, defaultMax);
     
     if (minBound > maxBound) {
       return { min: maxBound, max: minBound };
@@ -401,6 +408,10 @@ export class ZodMockSchema<T> {
       !(value instanceof Set),
       !(value instanceof Map)
     ].every(Boolean);
+  }
+
+  private hasCustomOverrides(overrides?: MockOptions<T>): overrides is MockOptions<T> & { overrides: unknown } {
+    return !!overrides && 'overrides' in overrides;
   }
 
   private isSchemaObject(schema: unknown): schema is Record<string, unknown> {

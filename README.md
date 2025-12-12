@@ -139,6 +139,8 @@ userMock.generateMany(3, {
 Generate valid Brazilian documents and identifiers with zero configuration:
 
 ```ts
+import { ZodMockSchema, BrazilianFormat } from '@mikemajesty/zod-mock-schema';
+
 const userSchema = z.object({
   cpf: z.string().meta({ format: 'cpf' }),      // 11-digit CPF
   cnpj: z.string().meta({ format: 'cnpj' }),   // 14-digit CNPJ
@@ -156,6 +158,10 @@ const user = mock.generate();
 //   phone: "11987654321",
 //   cep: "01001000"
 // }
+
+// TypeScript support for format validation
+const format: BrazilianFormat = 'cpf'; // Type-safe!
+```
 ```
 
 ### Why This Matters
@@ -317,6 +323,22 @@ Generates a single mock object.
 
 #### `generateMany(count: number, options?: MockManyOptions<T>): T[]`  
 Generates multiple mock objects.
+
+### Exported Types
+
+#### `MockOptions<T>`
+Configuration options for generating a single mock object.
+- `overrides?: Partial<T>` — Override specific properties
+- `faker?: Faker` — Custom Faker instance for localization
+
+#### `MockManyOptions<T>`
+Extends `MockOptions<T>` for batch generation.
+
+#### `BrazilianFormat`
+Type-safe union of Brazilian format identifiers:
+```ts
+type BrazilianFormat = 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep';
+```
 
 ---
 

@@ -14,6 +14,8 @@ export type ZodCheckMaxLengthDef = z.core.$ZodCheckMaxLengthDef;
 export type ZodCheckMinSizeDef = z.core.$ZodCheckMinSizeDef;
 export type ZodCheckMaxSizeDef = z.core.$ZodCheckMaxSizeDef;
 
+export type BrazilianFormat = 'cpf' | 'cnpj' | 'rg' | 'phoneBR' | 'cep';
+
 export type MockValue = string | number | boolean | Date | null | undefined | Record<string, unknown> | any | MockValue[];
 
 // Internal types for runtime properties not typed in z.core
