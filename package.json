@@ -1,6 +1,6 @@
 {
   "name": "@mikemajesty/zod-mock-schema",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Generate mock data from Zod schemas",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
