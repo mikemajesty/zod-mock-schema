@@ -303,7 +303,14 @@ export class ZodMockSchema<T> {
       return NaN;
     }
 
-    return null;
+    const schemaWithDef = schema as unknown as { _def?: { typeName?: string } };
+    const schemaType = schemaWithDef._def?.typeName || 'Unknown Type';
+    throw new Error(
+      `Unsupported Zod type: ${schemaType}\n\n` +
+      `This schema type is not currently supported by zod-mock-schema.\n` +
+      `If you need support for this type, please open an issue at:\n` +
+      `https://github.com/mikemajesty/zod-mock-schema/issues`
+    );
   }
 
   private generateStringValue(schema: z.core.$ZodString): string {
