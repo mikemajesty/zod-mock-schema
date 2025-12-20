@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "lib": ["ES2020"],
-    "outDir": "./dist/esm",
+    "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
     "skipLibCheck": true,
