@@ -60,11 +60,90 @@ const userSchema = z.object({
   age: z.number().int().min(18).max(99),
   isActive: z.boolean(),
   createdAt: z.date(),
-});x
+});
 
 const userMock = new ZodMockSchema(userSchema);
 
 console.log(userMock.generate());
+```
+
+---
+
+## 🎭 Type Inference with Generics
+
+The library supports **generic type inference**, allowing you to specify the exact type you want:
+
+### Using z.infer (Recommended)
+
+The best practice is to derive the type directly from the schema using `z.infer`:
+
+```ts
+const userSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(99),
+  isActive: z.boolean(),
+  createdAt: z.date(),
+});
+
+// ✅ Best practice: infer type from schema
+type User = z.infer<typeof userSchema>;
+
+const userMock = new ZodMockSchema(userSchema);
+
+// Type is automatically inferred as User
+const user = userMock.generate<User>();
+```
+
+### Type Inference with Classes/Entities
+
+Perfect for testing with ORM entities or class instances:
+
+```ts
+class UserEntity {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+  createdAt: Date;
+  
+  get isAdult() {
+    return this.age >= 18;
+  }
+}
+
+// Create schema that matches entity structure
+const userSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(99),
+  isActive: z.boolean(),
+  createdAt: z.date(),
+});
+
+const userMock = new ZodMockSchema(userSchema);
+
+// Generate mock data typed as UserEntity
+const user = userMock.generate<UserEntity>();
+// user.id, user.name, etc. are properly typed
+```
+
+### Type Inference with generateMany
+
+```ts
+type User = z.infer<typeof userSchema>;
+
+// Generate array of typed entities
+const users = userMock.generateMany<User>(5);
+// users is User[]
+
+// With overrides
+const activeUsers = userMock.generateMany<User>(3, {
+  overrides: { isActive: true }
+});
 ```
 
 ---
