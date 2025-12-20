@@ -34,16 +34,16 @@ A developer-friendly, class-based utility for generating realistic test data fro
 
 ```bash
 # npm
-npm install @mikemajesty/zod-mock-schema
+npm install @mikemajesty/zod-mock-schema zod @faker-js/faker
 
 # yarn
-yarn add @mikemajesty/zod-mock-schema
+yarn add @mikemajesty/zod-mock-schema zod @faker-js/faker
 
 # pnpm
-pnpm add @mikemajesty/zod-mock-schema
+pnpm add @mikemajesty/zod-mock-schema zod @faker-js/faker
 ```
 
-> **Note:** Zod and Faker are peer dependencies.
+> ⚠️ **Important:** `zod` and `@faker-js/faker` are **peer dependencies** and must be installed separately.
 
 ---
 
@@ -345,6 +345,24 @@ userMock.seed(123);
 const user = userMock.generate();
 ```
 
+### Using Faker Directly
+
+You can use `faker` in overrides to generate custom values:
+
+```ts
+import { ZodMockSchema } from '@mikemajesty/zod-mock-schema';
+import { faker } from '@faker-js/faker';
+
+// Use faker directly for custom values
+const user = userMock.generate({
+  overrides: {
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    bio: faker.lorem.paragraph(),
+  }
+});
+```
+
 ### Custom Faker Instance
 
 Inject a custom Faker instance with different locales or configurations:
@@ -359,6 +377,8 @@ const user = userMock.generate({ faker: customFaker });
 ### Parallel Tests with Isolated Faker Instances
 
 ```ts
+import { Faker, en, es } from '@faker-js/faker';
+
 test('parallel test 1', () => {
   const faker1 = new Faker({ locale: en });
   faker1.seed(100);
