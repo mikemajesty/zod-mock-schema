@@ -2,6 +2,7 @@
   "name": "@mikemajesty/zod-mock-schema",
   "version": "1.0.14",
   "description": "Generate mock data from Zod schemas",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
@@ -52,7 +53,7 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "files": [
     "dist",

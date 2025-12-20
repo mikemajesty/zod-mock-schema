@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ZodMockSchema } from '../zod-mock-schema';
+import { ZodMockSchema } from '../zod-mock-schema.js';
 
 enum SortEnum {
   asc = 1,

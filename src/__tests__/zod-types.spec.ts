@@ -1,4 +1,4 @@
-import { ZodMockSchema } from '../zod-mock-schema';
+import { ZodMockSchema } from '../zod-mock-schema.js';
 import z from 'zod';
 
 

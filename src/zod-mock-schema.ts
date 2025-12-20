@@ -1,8 +1,8 @@
 import { Faker, en } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps, BrazilianFormat } from './types';
-import { Constants } from './constants';
+import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps, BrazilianFormat } from './types.js';
+import { Constants } from './constants.js';
 
 export class ZodMockSchema<T> {
   public faker: Faker;

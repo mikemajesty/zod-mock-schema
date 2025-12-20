@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Faker, pt_BR, es } from '@faker-js/faker';
-import { ZodMockSchema } from '../zod-mock-schema';
+import { ZodMockSchema } from '../zod-mock-schema.js';
 
 describe('Faker Injection', () => {
   

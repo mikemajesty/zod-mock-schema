@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ZodMockSchema } from '../zod-mock-schema';
+import { ZodMockSchema } from '../zod-mock-schema.js';
 
 describe('Edge Cases', () => {
   describe('Numeric Edge Cases', () => {

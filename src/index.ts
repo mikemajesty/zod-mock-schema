@@ -1,2 +1,2 @@
-export { ZodMockSchema } from './zod-mock-schema';
-export type { MockOptions, MockManyOptions, BrazilianFormat } from './types';
+export { ZodMockSchema } from './zod-mock-schema.js';
+export type { MockOptions, MockManyOptions, BrazilianFormat } from './types.js';
