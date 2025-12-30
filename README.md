@@ -16,7 +16,7 @@ A developer-friendly, class-based utility for generating realistic test data fro
 - **Type-safe overrides** — full TypeScript intellisense and validation
 - **Intuitive seeding** — `mock.seed(123)` for deterministic tests
 
-### 🇧🇷 **Brazilian Format Support** (Unique Feature)
+### 🇧🇷 **Brazilian Format Support**
 - **CPF, CNPJ, RG** — built-in Brazilian document formats
 - **CEP** — postal code generation
 - **Phone BR** — Brazilian phone numbers
@@ -186,34 +186,7 @@ userMock.generateMany(3, {
 });
 ```
 ---
-
-## 🎯 Smart Prefixing System
-
-### Random Prefix Selection
-
-```ts
-userMock.generateMany(5, {
-  prefix: {
-    options: ['USER', 'CLIENT', 'CUSTOMER', 'MEMBER'],
-    for: 'username'
-  }
-});
-```
-
-### Index-Based Prefixing
-
-```ts
-userMock.generateMany(3, {
-  prefix: {
-    options: { useIndex: true },
-    for: 'email'
-  }
-});
-```
-
----
-
-## 🇧🇷 Brazilian Formats (Unique Feature)
+## 🇧🇷 Brazilian Formats
 
 Generate valid Brazilian documents and identifiers with zero configuration:
 
