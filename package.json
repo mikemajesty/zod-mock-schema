@@ -60,7 +60,7 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "jest"
   },
   "files": [
     "dist",
