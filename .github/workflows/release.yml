@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,24 +43,8 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Bump version
-        id: bump-version
-        run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT_VERSION"
-          
-          # Bump version usando npm version
-          if [[ "${{ github.event.inputs.version-bump }}" == *pre* ]]; then
-            npm version ${{ github.event.inputs.version-bump }} --no-git-tag-version
-          else
-            npm version ${{ github.event.inputs.version-bump }} --no-git-tag-version
-          fi
-          
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "New version: $NEW_VERSION"
-          
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+      - name: Pull latest changes
+        run: git pull origin ${{ github.ref_name }} --rebase
 
       - name: Install dependencies
         run: npm ci
@@ -71,11 +55,25 @@ jobs:
       - name: Build package
         run: npm run build
 
+      - name: Bump version
+        id: bump-version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+
+          npm version ${{ github.event.inputs.version-bump }} --no-git-tag-version
+
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+
       - name: Commit changes
         run: |
           git add package.json package-lock.json
           git commit -m "chore: release v${{ steps.bump-version.outputs.new_version }}"
-          git push origin HEAD:${{ github.ref }}
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Create tag
         run: |
