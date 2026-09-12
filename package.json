@@ -2,6 +2,7 @@
   "name": "@mikemajesty/zod-mock-schema",
   "version": "1.0.31",
   "description": "Generate mock data from Zod schemas",
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,14 +12,8 @@
   },
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/cjs/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "keywords": [
@@ -56,11 +51,11 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json",
+    "build": "tsc",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "files": [
     "dist",
