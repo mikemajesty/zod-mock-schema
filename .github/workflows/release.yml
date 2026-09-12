@@ -14,7 +14,7 @@ on:
           - major
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
 jobs:
