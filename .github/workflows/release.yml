@@ -14,16 +14,14 @@ on:
           - major
 
 env:
-  NODE_VERSION: '22'
-  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  NODE_VERSION: '24'
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
-      id-token: write
+      id-token: write   # necessário para OIDC / Trusted Publishing
 
     steps:
       - name: Checkout repository
@@ -38,6 +36,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org/'
           scope: '@mikemajesty'
+
+      - name: Verify npm version
+        run: |
+          node -v
+          npm -v
+          # Precisa ser npm >= 11.5.1 para Trusted Publishing
 
       - name: Configure Git
         run: |
@@ -81,10 +85,9 @@ jobs:
           git tag -a "v${{ steps.bump-version.outputs.new_version }}" -m "Release v${{ steps.bump-version.outputs.new_version }}"
           git push origin "v${{ steps.bump-version.outputs.new_version }}"
 
-      - name: Publish to npm
+      - name: Publish to npm (Trusted Publishing)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Sem NODE_AUTH_TOKEN — OIDC cuida da autenticação
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
