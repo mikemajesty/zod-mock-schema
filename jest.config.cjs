@@ -3,10 +3,16 @@ module.exports = {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true }]
+    '^.+\\.(t|j)s$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        module: 'ESNext',
+        moduleResolution: 'Bundler'
+      }
+    }]
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(@faker-js/faker|randexp)/)'
+    '/node_modules/(?!(@faker-js/faker|randexp|uuid|@mikemajesty/zod-mock-schema)/)'
   ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
