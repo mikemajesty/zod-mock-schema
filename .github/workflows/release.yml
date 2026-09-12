@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -81,7 +82,7 @@ jobs:
           git push origin "v${{ steps.bump-version.outputs.new_version }}"
 
       - name: Publish to npm
-        run: npm stage publish
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
