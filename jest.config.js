@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', { useESM: true }]
+    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true }]
   },
   transformIgnorePatterns: [
     '/node_modules/(?!(@faker-js/faker|randexp)/)'

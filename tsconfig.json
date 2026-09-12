@@ -14,8 +14,10 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    "types": ["jest", "node"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0" 
   }
 }

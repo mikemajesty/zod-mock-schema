@@ -40,20 +40,20 @@
   "author": "Mike Lima",
   "license": "MIT",
   "dependencies": {
-    "@faker-js/faker": "^9.9.0",
+    "@faker-js/faker": "^10.6.0",
     "randexp": "^0.5.3"
   },
   "peerDependencies": {
-    "zod": ">=3.0.0 || >=4.0.0"
+    "zod": "latest"
   },
   "devDependencies": {
-    "@jest/globals": "^30.2.0",
+    "@jest/globals": "^30.5.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.4.6",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json",
