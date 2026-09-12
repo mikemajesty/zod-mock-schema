@@ -83,7 +83,7 @@ jobs:
           git push origin "v${{ steps.bump-version.outputs.new_version }}"
 
       - name: Publish to npm
-        run: npm publish
+        run: npm stage publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
