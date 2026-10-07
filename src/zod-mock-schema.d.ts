@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { z } from 'zod';
-import { MockManyOptions, MockOptions } from './types';
+import { MockFactory, MockManyOptions, MockOptions } from './types';
 /**
  * A mock data generator based on Zod schemas.
  * 
@@ -18,12 +18,12 @@ export declare class ZodMockSchema<T> {
    * The Zod schema that defines the structure and validation rules for generated data.
    * @type {z.ZodSchema<T>}
    */
-  readonly schema: z.ZodSchema<T>;
+  readonly schema: z.ZodType<T>;
   
   /**
    * Creates a new instance of ZodMockSchema.
    * 
-   * @param {z.ZodSchema<T>} schema - The Zod schema to use for data generation and validation.
+   * @param {z.ZodType<Partial<T>>} schema - The Zod schema to use for data generation and validation.
    * @example
    * const userSchema = z.object({
    *   name: z.string(),
@@ -31,7 +31,7 @@ export declare class ZodMockSchema<T> {
    * });
    * const userMock = new ZodMockSchema(userSchema);
    */
-  constructor(schema: z.ZodSchema<Partial<T>>);
+  constructor(schema: z.ZodType<Partial<T>>);
   
   /**
    * Generates a single mock data object based on the configured Zod schema.
@@ -44,7 +44,10 @@ export declare class ZodMockSchema<T> {
    *   overrides: { name: 'Custom Name' }
    * });
    */
-  generate<D extends T>(options?: MockOptions<Partial<T>>): D;
+  generate<TResult>(options: MockOptions<T, TResult> & {
+    factory: MockFactory<T, TResult>;
+  }): TResult;
+  generate<D extends T>(options?: MockOptions<T>): D;
   
   /**
    * Generates multiple mock data objects based on the configured Zod schema.
@@ -58,7 +61,10 @@ export declare class ZodMockSchema<T> {
    *   overrides: { active: true }
    * });
    */
-  generateMany<D extends T>(count: number, options?: MockManyOptions<Partial<T>>): D[];
+  generateMany<TResult>(count: number, options: MockManyOptions<T, TResult> & {
+    factory: MockFactory<T, TResult>;
+  }): TResult[];
+  generateMany<D extends T>(count: number, options?: MockManyOptions<T>): D[];
   
   /**
    * Gets mock data for Brazilian-specific formats.

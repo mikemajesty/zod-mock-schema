@@ -1,7 +1,7 @@
 import { Faker, en } from '@faker-js/faker';
 import RandExp from 'randexp';
 import z from 'zod';
-import { MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps, BrazilianFormat } from './types.js';
+import { MockFactory, MockManyOptions, MockOptions, ZodCheck, ZodCheckMinLength, ZodCheckMaxLength, ZodCheckMinSize, ZodCheckMaxSize, ZodCheckRegex, ZodCheckRegexDef, ZodCheckMinLengthDef, ZodCheckMaxLengthDef, ZodCheckMinSizeDef, ZodCheckMaxSizeDef, MockValue, ZodStringWithPublicProps, ZodNumberWithPublicProps, BrazilianFormat } from './types.js';
 import { Constants } from './constants.js';
 
 export class ZodMockSchema<T> {
@@ -17,36 +17,53 @@ export class ZodMockSchema<T> {
     return this;
   }
 
-  generate<D extends T>(overrides?: MockOptions<T>): D {
+  generate<TResult>(
+    options: MockOptions<T, TResult> & { factory: MockFactory<T, TResult> }
+  ): TResult;
+  generate<D extends T>(options?: MockOptions<T>): D;
+  generate<TResult = T>(options?: MockOptions<T, TResult>): T | TResult {
+    const parsed = this.generateParsed(options);
+    return options?.factory ? options.factory(parsed) : parsed;
+  }
+
+  generateMany<TResult>(
+    count: number,
+    options: MockManyOptions<T, TResult> & { factory: MockFactory<T, TResult> }
+  ): TResult[];
+  generateMany<D extends T>(count: number, options?: MockManyOptions<T>): D[];
+  generateMany<TResult = T>(
+    count: number,
+    options: MockManyOptions<T, TResult> = {}
+  ): Array<T | TResult> {
+    return Array.from({ length: count }, () => {
+      const parsed = this.generateParsed(options);
+      return options.factory ? options.factory(parsed) : parsed;
+    });
+  }
+
+  private generateParsed<TResult>(options?: MockOptions<T, TResult>): T {
     const originalFaker = this.faker;
     
     try {
-      if (overrides?.faker) {
-        this.faker = overrides.faker;
+      if (options?.faker) {
+        this.faker = options.faker;
       }
       
       const mockData = this.generateFromSchema(this.schema);
       
-      if (!this.hasCustomOverrides(overrides)) {
-        return this.schema.parse(mockData) as D;
+      if (!this.hasCustomOverrides(options)) {
+        return this.schema.parse(mockData);
       }
       
-      if (this.isPlainObject(overrides.overrides) && this.isPlainObject(mockData)) {
-        const merged = { ...(mockData as object), ...overrides.overrides };
-        return this.schema.parse(merged) as D;
+      if (this.isPlainObject(options.overrides) && this.isPlainObject(mockData)) {
+        const merged = { ...(mockData as object), ...options.overrides };
+        return this.schema.parse(merged);
       }
       
-      return this.schema.parse(overrides.overrides) as D;
+      return this.schema.parse(options.overrides);
     } finally {
       this.faker = originalFaker;
     }
-  }
-
-  generateMany<D extends T>(
-    count: number,
-    options: MockManyOptions<T> = {}
-  ): D[] {
-    return Array.from({ length: count }, () => this.generate(options));
   }
 
   private generateFromSchema(schema: z.core.$ZodType): MockValue {
@@ -417,7 +434,9 @@ export class ZodMockSchema<T> {
     ].every(Boolean);
   }
 
-  private hasCustomOverrides(overrides?: MockOptions<T>): overrides is MockOptions<T> & { overrides: unknown } {
+  private hasCustomOverrides<TResult>(
+    overrides?: MockOptions<T, TResult>
+  ): overrides is MockOptions<T, TResult> & { overrides: unknown } {
     return !!overrides && 'overrides' in overrides;
   }
 

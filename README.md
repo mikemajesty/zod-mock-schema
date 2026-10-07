@@ -396,12 +396,32 @@ Generates a single mock object.
 #### `generateMany(count: number, options?: MockManyOptions<T>): T[]`  
 Generates multiple mock objects.
 
+Both methods accept an optional `factory`, applied after schema validation:
+
+```ts
+class User {
+  constructor(readonly data: z.infer<typeof userSchema>) {}
+}
+
+const user = userMock.generate({
+  overrides: { name: 'Mike' },
+  factory: data => new User(data)
+});
+
+const users = userMock.generateMany(3, {
+  factory: data => new User(data)
+});
+```
+
+The return types are inferred as `User` and `User[]`.
+
 ### Exported Types
 
 #### `MockOptions<T>`
 Configuration options for generating a single mock object.
 - `overrides?: Partial<T>` — Override specific properties
 - `faker?: Faker` — Custom Faker instance for localization
+- `factory?: (data: T) => TResult` — Map validated data to another representation
 
 #### `MockManyOptions<T>`
 Extends `MockOptions<T>` for batch generation.

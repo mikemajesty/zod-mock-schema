@@ -37,7 +37,9 @@ export type ZodNumberWithPublicProps = {
  * 
  * @template T - The type of data being generated.
  */
-export type MockOptions<T = any> = {
+export type MockFactory<T, TResult> = (data: T) => TResult;
+
+export type MockOptions<T = any, TResult = T> = {
   /**
    * Partial object containing property overrides for the generated data.
    * These values will replace the default generated values for specified properties.
@@ -65,6 +67,12 @@ export type MockOptions<T = any> = {
    * ```
    */
   faker?: Faker;
+
+  /**
+   * Optional factory applied after the generated data is validated by the schema.
+   * Useful for returning class instances or other mapped representations.
+   */
+  factory?: MockFactory<T, TResult>;
 }
 
 /**
@@ -73,7 +81,7 @@ export type MockOptions<T = any> = {
  * 
  * @template T - The type of data being generated.
  */
-export type MockManyOptions<T = any> = MockOptions<T>;
+export type MockManyOptions<T = any, TResult = T> = MockOptions<T, TResult>;
 
 /**
  * Utility type to extract the TypeScript type from a Zod schema.
@@ -136,5 +144,5 @@ export interface ZodMockSchema<T> {
   /**
    * The Zod schema used for mock data generation.
    */
-  readonly schema: z.ZodSchema<T>;
+  readonly schema: z.ZodType<T>;
 }
